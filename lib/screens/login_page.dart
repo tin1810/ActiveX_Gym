@@ -148,9 +148,9 @@ class _LoginPageState extends State<LoginPage> {
                         const SizedBox(height: 14),
                         Row(children: [Expanded(child: Divider(color: Colors.white30)), const Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text('OR', style: TextStyle(color: Colors.white70))), Expanded(child: Divider(color: Colors.white30))]),
                         const SizedBox(height: 14),
-                        _SocialButton(icon: Icons.g_mobiledata, label: 'Continue with Google'),
-                        const SizedBox(height: 10),
-                        _SocialButton(icon: Icons.apple, label: 'Continue with Apple'),
+                        // _SocialButton(icon: Icons.g_mobiledata, label: 'Continue with Google'),
+                        // const SizedBox(height: 10),
+                        // _SocialButton(icon: Icons.apple, label: 'Continue with Apple'),
                         const SizedBox(height: 18),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
