@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../services/mock_api.dart';
+import '../models/workout.dart';
+import '../models/exercise.dart';
 import 'exercise_detail_page.dart';
 
 class WorkoutDetailPage extends StatefulWidget {
@@ -12,6 +15,7 @@ class WorkoutDetailPage extends StatefulWidget {
     this.numExercises = 6,
     this.headerImageUrl =
         'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=1200&auto=format&fit=crop',
+    this.workoutId,
   });
 
   final String title;
@@ -20,6 +24,7 @@ class WorkoutDetailPage extends StatefulWidget {
   final int kcal;
   final int numExercises;
   final String headerImageUrl;
+  final String? workoutId;
 
   @override
   State<WorkoutDetailPage> createState() => _WorkoutDetailPageState();
@@ -27,6 +32,16 @@ class WorkoutDetailPage extends StatefulWidget {
 
 class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
   int _selectedTab = 0; // 0: Overview, 1: Exercises, 2: Details
+  final MockApiService _api = const MockApiService();
+  Future<WorkoutModel?>? _futureWorkout;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.workoutId != null) {
+      _futureWorkout = _api.fetchWorkoutById(widget.workoutId!);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -73,11 +88,16 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
             child: CachedNetworkImage(
               imageUrl: widget.headerImageUrl,
               fit: BoxFit.cover,
-              placeholder: (context, url) => Container(color: const Color(0xFF222222)),
+              placeholder: (context, url) =>
+                  Container(color: const Color(0xFF222222)),
               errorWidget: (context, url, error) => Container(
                 color: const Color(0xFF222222),
                 alignment: Alignment.center,
-                child: const Icon(Icons.fitness_center, color: Colors.white70, size: 72),
+                child: const Icon(
+                  Icons.fitness_center,
+                  color: Colors.white70,
+                  size: 72,
+                ),
               ),
             ),
           ),
@@ -95,10 +115,13 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
                   color: Colors.black.withValues(alpha: 0.08),
                   blurRadius: 10,
                   offset: const Offset(0, 2),
-                )
+                ),
               ],
             ),
-            child: Text('${widget.numExercises} Exercises', style: const TextStyle(fontWeight: FontWeight.w600)),
+            child: Text(
+              '${widget.numExercises} Exercises',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
           ),
         ),
       ],
@@ -111,10 +134,7 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
         Expanded(
           child: Text(
             widget.title,
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-            ),
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
           ),
         ),
         Container(
@@ -125,9 +145,12 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
           ),
           child: Text(
             widget.level,
-            style: const TextStyle(color: Color(0xFF9AA300), fontWeight: FontWeight.w700),
+            style: const TextStyle(
+              color: Color(0xFF9AA300),
+              fontWeight: FontWeight.w700,
+            ),
           ),
-        )
+        ),
       ],
     );
   }
@@ -136,9 +159,23 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        _StatItem(icon: Icons.access_time, label: 'min', value: widget.durationMinutes.toString()),
-        _StatItem(icon: Icons.local_fire_department, label: 'kcal', value: widget.kcal.toString(), color: const Color(0xFFFFAB40)),
-        _StatItem(icon: Icons.list_alt, label: 'Exercises', value: widget.numExercises.toString(), color: const Color(0xFF4A90E2)),
+        _StatItem(
+          icon: Icons.access_time,
+          label: 'min',
+          value: widget.durationMinutes.toString(),
+        ),
+        _StatItem(
+          icon: Icons.local_fire_department,
+          label: 'kcal',
+          value: widget.kcal.toString(),
+          color: const Color(0xFFFFAB40),
+        ),
+        _StatItem(
+          icon: Icons.list_alt,
+          label: 'Exercises',
+          value: widget.numExercises.toString(),
+          color: const Color(0xFF4A90E2),
+        ),
       ],
     );
   }
@@ -154,7 +191,9 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 14),
               side: BorderSide(color: Colors.grey.shade300),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(30),
+              ),
             ),
           ),
         ),
@@ -168,7 +207,9 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
               backgroundColor: const Color(0xFF34C759),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(30),
+              ),
             ),
           ),
         ),
@@ -210,7 +251,45 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
   Widget _buildTabContent() {
     switch (_selectedTab) {
       case 1:
-        return _ExercisesSection();
+        if (_futureWorkout != null) {
+          return FutureBuilder<WorkoutModel?>(
+            future: _futureWorkout,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              final workout = snapshot.data;
+              if (workout == null) {
+                return const Center(child: Text('No exercises'));
+              }
+              return _ExercisesSection(exercises: workout.exercises);
+            },
+          );
+        }
+        return _ExercisesSection(
+          exercises: [
+            ExerciseModel(
+              id: 'pushups',
+              title: 'Push-ups',
+              difficulty: 'Beginner',
+              sets: 3,
+              reps: '10-15',
+              restSeconds: 60,
+              targetMuscles: const ['Chest', 'Shoulders', 'Triceps'],
+              imageUrl: _exerciseImageFor('Push-ups'),
+            ),
+            ExerciseModel(
+              id: 'squats',
+              title: 'Squats',
+              difficulty: 'Beginner',
+              sets: 3,
+              reps: '12-20',
+              restSeconds: 45,
+              targetMuscles: const ['Quadriceps', 'Glutes', 'Hamstrings'],
+              imageUrl: _exerciseImageFor('Squats'),
+            ),
+          ],
+        );
       case 2:
         return _OverviewSection(
           durationMinutes: widget.durationMinutes,
@@ -220,7 +299,10 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
         );
       case 0:
       default:
-        return _DetailsSection(level: widget.level, numExercises: widget.numExercises);
+        return _DetailsSection(
+          level: widget.level,
+          numExercises: widget.numExercises,
+        );
     }
   }
 }
@@ -256,17 +338,24 @@ class _StatItem extends StatelessWidget {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(value, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+            Text(
+              value,
+              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+            ),
             Text(label, style: TextStyle(color: Colors.grey[600])),
           ],
-        )
+        ),
       ],
     );
   }
 }
 
 class _SegmentButton extends StatelessWidget {
-  const _SegmentButton({required this.label, this.selected = false, this.onTap});
+  const _SegmentButton({
+    required this.label,
+    this.selected = false,
+    this.onTap,
+  });
 
   final String label;
   final bool selected;
@@ -312,7 +401,11 @@ class _SectionTitle extends StatelessWidget {
 }
 
 class _PillChip extends StatelessWidget {
-  const _PillChip(this.text, {this.bg = const Color(0xFFF2F2F7), this.textColor = const Color(0xFF3A3A3C)});
+  const _PillChip(
+    this.text, {
+    this.bg = const Color(0xFFF2F2F7),
+    this.textColor = const Color(0xFF3A3A3C),
+  });
 
   final String text;
   final Color bg;
@@ -362,15 +455,24 @@ class _OverviewSection extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Workout Summary', style: TextStyle(fontWeight: FontWeight.w800)),
+              const Text(
+                'Workout Summary',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
               const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(
-                    child: _SummaryRow(title: 'Total Time:', value: '${durationMinutes}min'),
+                    child: _SummaryRow(
+                      title: 'Total Time:',
+                      value: '${durationMinutes}min',
+                    ),
                   ),
                   Expanded(
-                    child: _SummaryRow(title: 'Estimated Calories:', value: '${kcal}kcal'),
+                    child: _SummaryRow(
+                      title: 'Estimated Calories:',
+                      value: '${kcal}kcal',
+                    ),
                   ),
                 ],
               ),
@@ -378,10 +480,16 @@ class _OverviewSection extends StatelessWidget {
               Row(
                 children: [
                   const Expanded(
-                    child: _SummaryRow(title: 'Difficulty:', value: 'Intermediate'),
+                    child: _SummaryRow(
+                      title: 'Difficulty:',
+                      value: 'Intermediate',
+                    ),
                   ),
                   Expanded(
-                    child: _SummaryRow(title: 'Exercise Count:', value: '$numExercises exercises'),
+                    child: _SummaryRow(
+                      title: 'Exercise Count:',
+                      value: '$numExercises exercises',
+                    ),
                   ),
                 ],
               ),
@@ -399,7 +507,10 @@ class _OverviewSection extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: const [
-              Text('Tips for Success', style: TextStyle(fontWeight: FontWeight.w800)),
+              Text(
+                'Tips for Success',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
               SizedBox(height: 12),
               _TipRow('Warm up for 5-10 minutes before starting'),
               _TipRow('Focus on proper form rather than speed'),
@@ -454,27 +565,27 @@ class _TipRow extends StatelessWidget {
 }
 
 class _ExercisesSection extends StatelessWidget {
+  const _ExercisesSection({required this.exercises});
+  final List<ExerciseModel> exercises;
+
   @override
   Widget build(BuildContext context) {
     return Column(
-      children: const [
-        _ExerciseCard(
-          title: 'Push-ups',
-          difficulty: 'Beginner',
-          sets: '3 sets',
-          reps: '10-15 reps',
-          rest: '60s',
-          muscles: ['Chest', 'Shoulders', 'Triceps', '+1'],
-        ),
-        SizedBox(height: 12),
-        _ExerciseCard(
-          title: 'Squats',
-          difficulty: 'Beginner',
-          sets: '3 sets',
-          reps: '12-20 reps',
-          rest: '45s',
-          muscles: ['Quadriceps', 'Glutes', 'Hamstrings', '+1'],
-        ),
+      children: [
+        for (int i = 0; i < exercises.length; i++) ...[
+          _ExerciseCard(
+            title: exercises[i].title,
+            difficulty: exercises[i].difficulty,
+            sets: '${exercises[i].sets} sets',
+            reps: '${exercises[i].reps} reps',
+            rest: '${exercises[i].restSeconds}s',
+            muscles: [
+              ...exercises[i].targetMuscles,
+              if (exercises[i].targetMuscles.length > 3) '+1',
+            ],
+          ),
+          if (i != exercises.length - 1) const SizedBox(height: 12),
+        ],
       ],
     );
   }
@@ -519,100 +630,120 @@ class _ExerciseCard extends StatelessWidget {
       },
       borderRadius: BorderRadius.circular(16),
       child: Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color:Colors.grey.shade300),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          )
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: SizedBox(
-                  width: 56,
-                  height: 56,
-                  child: CachedNetworkImage(
-                    imageUrl: _exerciseImageFor(title),
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(color: const Color(0xFF222222)),
-                    errorWidget: (context, url, error) => Container(
-                      color: const Color(0xFF222222),
-                      alignment: Alignment.center,
-                      child: const Icon(Icons.image, color: Colors.white60),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade300),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: SizedBox(
+                    width: 56,
+                    height: 56,
+                    child: CachedNetworkImage(
+                      imageUrl: _exerciseImageFor(title),
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) =>
+                          Container(color: const Color(0xFF222222)),
+                      errorWidget: (context, url, error) => Container(
+                        color: const Color(0xFF222222),
+                        alignment: Alignment.center,
+                        child: const Icon(Icons.image, color: Colors.white60),
+                      ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            title,
-                            style: const TextStyle(fontWeight: FontWeight.w800),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              title,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
                           ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE9F8EC),
-                            borderRadius: BorderRadius.circular(14),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE9F8EC),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Text(
+                              difficulty,
+                              style: const TextStyle(
+                                color: Color(0xFF34C759),
+                                fontWeight: FontWeight.w700,
+                                fontSize: 12,
+                              ),
+                            ),
                           ),
-                          child: Text(
-                            difficulty,
-                            style: const TextStyle(color: Color(0xFF34C759), fontWeight: FontWeight.w700, fontSize: 12),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Text(sets, style: TextStyle(color: Colors.grey[700])),
+                          const SizedBox(width: 8),
+                          Text(reps, style: TextStyle(color: Colors.grey[700])),
+                          const SizedBox(width: 8),
+                          const Icon(
+                            Icons.refresh,
+                            size: 16,
+                            color: Colors.grey,
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Text(sets, style: TextStyle(color: Colors.grey[700])),
-                        const SizedBox(width: 8),
-                        Text(reps, style: TextStyle(color: Colors.grey[700])),
-                        const SizedBox(width: 8),
-                        const Icon(Icons.refresh, size: 16, color: Colors.grey),
-                        const SizedBox(width: 4),
-                        Text(rest, style: TextStyle(color: Colors.grey[700])),
-                      ],
-                    ),
-                  ],
+                          const SizedBox(width: 4),
+                          Text(rest, style: TextStyle(color: Colors.grey[700])),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: muscles
-                .map((m) => _PillChip(m, bg: const Color(0xFFEFFAF2), textColor: const Color(0xFF2C8B53)))
-                .toList(),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'Tap for detailed instructions, tips, and variations',
-            style: TextStyle(color: Colors.grey[700]),
-          ),
-        ],
-      ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: muscles
+                  .map(
+                    (m) => _PillChip(
+                      m,
+                      bg: const Color(0xFFEFFAF2),
+                      textColor: const Color(0xFF2C8B53),
+                    ),
+                  )
+                  .toList(),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Tap for detailed instructions, tips, and variations',
+              style: TextStyle(color: Colors.grey[700]),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -664,12 +795,14 @@ class _DetailsSection extends StatelessWidget {
           children: const [
             Icon(Icons.no_accounts, color: Color(0xFF8E44FF), size: 18),
             SizedBox(width: 8),
-            _PillChip('None - Bodyweight Only', bg: Color(0xFFF2E9FF), textColor: Color(0xFF6E49B5)),
+            _PillChip(
+              'None - Bodyweight Only',
+              bg: Color(0xFFF2E9FF),
+              textColor: Color(0xFF6E49B5),
+            ),
           ],
         ),
       ],
     );
   }
 }
-
-

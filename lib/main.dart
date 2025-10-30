@@ -4,6 +4,7 @@ import 'screens/home_page.dart';
 import 'screens/workouts_page.dart';
 import 'screens/progress_page.dart';
 import 'screens/profile_page.dart';
+import 'screens/login_page.dart';
 
 void main() {
   runApp(const ActiveXGymApp());
@@ -21,7 +22,7 @@ class ActiveXGymApp extends StatelessWidget {
         fontFamily: 'Poppins',
         scaffoldBackgroundColor: Colors.white,
       ),
-      home: const MainScreen(),
+      home: const LoginPage(),
       debugShowCheckedModeBanner: false,
     );
   }

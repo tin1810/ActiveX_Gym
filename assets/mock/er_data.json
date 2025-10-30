@@ -1,0 +1,56 @@
+{
+  "users": [
+    {"id": "u1", "name": "Willam", "email": "willam@example.com", "role": "user", "goal": "Lose 5kg"},
+    {"id": "t1", "name": "Coach Amy", "email": "amy@example.com", "role": "trainer"}
+  ],
+  "workout_plans": [
+    {
+      "id": "p1",
+      "trainerId": "t1",
+      "name": "Beginner Strength",
+      "description": "3-day plan to build basics",
+      "difficulty": "beginner",
+      "workouts": [
+        {"workoutId": "w1", "dayOfWeek": 1, "sets": 3, "reps": "10-12"},
+        {"workoutId": "w2", "dayOfWeek": 3, "sets": 3, "reps": "12-15"}
+      ]
+    }
+  ],
+  "nutrition_plans": [
+    {
+      "id": "n1",
+      "trainerId": "t1",
+      "name": "Cutting 1800kcal",
+      "description": "High protein, moderate carbs",
+      "dailyCaloriesTarget": 1800,
+      "meals": [
+        {"name": "Breakfast", "timeOfDay": "08:00"},
+        {"name": "Lunch", "timeOfDay": "12:30"},
+        {"name": "Dinner", "timeOfDay": "19:00"}
+      ]
+    }
+  ],
+  "community_challenges": [
+    {
+      "id": "c1",
+      "title": "October Push-up Challenge",
+      "description": "Do 100 push-ups daily!",
+      "startDate": "2025-10-01",
+      "endDate": "2025-10-31",
+      "participants": [
+        {"userId": "u1", "progress": 70},
+        {"userId": "t1", "progress": 90}
+      ]
+    }
+  ],
+  "progress_logs": [
+    {"userId": "u1", "date": "2025-10-25", "weightKg": 74.2, "caloriesBurned": 520, "notes": "Great session"},
+    {"userId": "u1", "date": "2025-10-26", "weightKg": 74.0, "caloriesBurned": 610}
+  ],
+  "user_plan_assignments": [
+    {"userId": "u1", "planId": "p1", "planType": "workout", "assignedBy": "t1", "startDate": "2025-10-01"},
+    {"userId": "u1", "planId": "n1", "planType": "nutrition", "assignedBy": "t1", "startDate": "2025-10-01"}
+  ]
+}
+
+

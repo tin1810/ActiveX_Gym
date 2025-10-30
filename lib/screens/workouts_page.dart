@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../services/mock_api.dart';
+import '../models/workout.dart';
+import 'workout_plans_page.dart';
+import 'challenges_page.dart';
+import 'nutrition_plans_page.dart';
+import 'progress_logs_page.dart';
 import '../utils/app_text_style.dart';
 import 'workout_detail_page.dart';
 
@@ -14,11 +20,19 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
   int _selectedFilter = 0;
   final List<String> _filters = ['All', 'Strength', 'Cardio', 'Flexibility'];
   final TextEditingController _searchController = TextEditingController();
+  final MockApiService _api = const MockApiService();
+  late Future<List<WorkoutModel>> _futureWorkouts;
 
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _futureWorkouts = _api.fetchWorkouts();
   }
 
   @override
@@ -96,40 +110,72 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
             const SizedBox(height: 24),
             // Content
             Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Featured Today Section
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Text(
-                        'Featured Today',
-                        style: AppTextStyle.semiBoldText(
-                          size: 20,
-                          color: Colors.black,
+              child: FutureBuilder<List<WorkoutModel>>(
+                future: _futureWorkouts,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Text('Failed to load workouts', style: AppTextStyle.mediumText(size: 14, color: Colors.red)),
+                    );
+                  }
+                  final workouts = snapshot.data ?? [];
+                  final mapped = workouts.map((w) => _WorkoutData(
+                        id: w.id,
+                        title: w.title,
+                        difficulty: w.level,
+                        difficultyColor: _levelColor(w.level),
+                        time: '${w.durationMinutes} min',
+                        calories: '${w.kcal} kcal',
+                        exercises: '${w.exercisesCount} exercises',
+                        imageColor: Colors.grey.shade200,
+                        imageUrl: w.imageUrl,
+                        tags: w.tags,
+                        equipment: w.equipment,
+                      ));
+                  return SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Featured Today Section
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Text(
+                            'Featured Today',
+                            style: AppTextStyle.semiBoldText(
+                              size: 20,
+                              color: Colors.black,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildFeaturedCard(),
-                    const SizedBox(height: 24),
-                    // All Workouts Section
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Text(
-                        'All Workouts',
-                        style: AppTextStyle.semiBoldText(
-                          size: 20,
-                          color: Colors.black,
+                        const SizedBox(height: 12),
+                        _buildFeaturedCard(),
+                        const SizedBox(height: 24),
+                        // All Workouts Section
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Text(
+                            'All Workouts',
+                            style: AppTextStyle.semiBoldText(
+                              size: 20,
+                              color: Colors.black,
+                            ),
+                          ),
                         ),
-                      ),
+                        const SizedBox(height: 12),
+                        ...mapped
+                            .map((wd) => Container(
+                                  margin: const EdgeInsets.only(bottom: 16, left: 16, right: 16),
+                                  child: _buildWorkoutCard(wd),
+                                ))
+                            .toList(),
+                        const SizedBox(height: 32),
+                      ],
                     ),
-                    const SizedBox(height: 12),
-                    ..._buildWorkoutCards(),
-                    const SizedBox(height: 32),
-                  ],
-                ),
+                  );
+                },
               ),
             ),
           ],
@@ -275,7 +321,7 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
         imageColor: const Color(0xFFD4E9F7),
         imageUrl: 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?q=80&w=600&auto=format&fit=crop',
         tags: ['Flexibility', 'Core'],
-        equipment: 'Yoga Mat',
+        equipment: 'Yoga Mat', id: '',
       ),
       _WorkoutData(
         title: 'HIIT Cardio Blast',
@@ -287,7 +333,7 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
         imageColor: const Color(0xFFE8F5E9),
         imageUrl: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=600&auto=format&fit=crop',
         tags: ['Cardio', 'Full Body'],
-        equipment: 'None',
+        equipment: 'None', id: '',
       ),
       _WorkoutData(
         title: 'Full Body Strength',
@@ -299,7 +345,7 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
         imageColor: const Color(0xFFFFF3E0),
         imageUrl: 'https://images.unsplash.com/photo-1526506118085-60ce8714f8c5?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=687',
         tags: ['Strength', 'Upper Body', 'Lower Body'],
-        equipment: 'Dumbbells',
+        equipment: 'Dumbbells', id: '',
       ),
       _WorkoutData(
         title: 'Abs & Core Power',
@@ -311,7 +357,7 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
         imageColor: const Color(0xFFFFE0E0),
         imageUrl: 'https://images.unsplash.com/photo-1548690312-e3b507d8c110?q=80&w=600&auto=format&fit=crop',
         tags: ['Core', 'Strength'],
-        equipment: 'Mat',
+        equipment: 'Mat', id: '',
       ),
     ];
 
@@ -330,11 +376,13 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
           context,
           MaterialPageRoute(
             builder: (context) => WorkoutDetailPage(
+              workoutId: workout.id,
               title: workout.title,
               level: workout.difficulty,
               durationMinutes: int.parse(workout.time.split(' ')[0]),
               kcal: int.parse(workout.calories.split(' ')[0]),
               numExercises: int.parse(workout.exercises.split(' ')[0]),
+              headerImageUrl: workout.imageUrl,
             ),
           ),
         );
@@ -548,6 +596,7 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
 }
 
 class _WorkoutData {
+  final String id;
   final String title;
   final String difficulty;
   final Color difficultyColor;
@@ -560,6 +609,7 @@ class _WorkoutData {
   final String equipment;
 
   _WorkoutData({
+    required this.id,
     required this.title,
     required this.difficulty,
     required this.difficultyColor,
@@ -571,4 +621,48 @@ class _WorkoutData {
     required this.tags,
     required this.equipment,
   });
+}
+
+Color _levelColor(String level) {
+  switch (level.toLowerCase()) {
+    case 'beginner':
+      return const Color(0xFF7ED957);
+    case 'advanced':
+      return Colors.red;
+    case 'intermediate':
+    default:
+      return Colors.orange;
+  }
+}
+
+class _QuickLink extends StatelessWidget {
+  const _QuickLink({required this.icon, required this.label, required this.onTap});
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 20, color: Colors.black87),
+              const SizedBox(height: 6),
+              Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
