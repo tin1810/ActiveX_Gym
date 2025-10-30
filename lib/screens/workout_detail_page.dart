@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'exercise_detail_page.dart';
 
 class WorkoutDetailPage extends StatefulWidget {
@@ -9,6 +10,8 @@ class WorkoutDetailPage extends StatefulWidget {
     this.durationMinutes = 120,
     this.kcal = 450,
     this.numExercises = 6,
+    this.headerImageUrl =
+        'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=1200&auto=format&fit=crop',
   });
 
   final String title;
@@ -16,6 +19,7 @@ class WorkoutDetailPage extends StatefulWidget {
   final int durationMinutes;
   final int kcal;
   final int numExercises;
+  final String headerImageUrl;
 
   @override
   State<WorkoutDetailPage> createState() => _WorkoutDetailPageState();
@@ -61,15 +65,21 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
   Widget _buildHeaderMedia(BuildContext context) {
     return Stack(
       children: [
-        Container(
-          height: 220,
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: const Color(0xFF222222),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: const Center(
-            child: Icon(Icons.fitness_center, color: Colors.white70, size: 72),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: SizedBox(
+            height: 220,
+            width: double.infinity,
+            child: CachedNetworkImage(
+              imageUrl: widget.headerImageUrl,
+              fit: BoxFit.cover,
+              placeholder: (context, url) => Container(color: const Color(0xFF222222)),
+              errorWidget: (context, url, error) => Container(
+                color: const Color(0xFF222222),
+                alignment: Alignment.center,
+                child: const Icon(Icons.fitness_center, color: Colors.white70, size: 72),
+              ),
+            ),
           ),
         ),
         Positioned(
@@ -528,14 +538,22 @@ class _ExerciseCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF222222),
-                  borderRadius: BorderRadius.circular(12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: SizedBox(
+                  width: 56,
+                  height: 56,
+                  child: CachedNetworkImage(
+                    imageUrl: _exerciseImageFor(title),
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => Container(color: const Color(0xFF222222)),
+                    errorWidget: (context, url, error) => Container(
+                      color: const Color(0xFF222222),
+                      alignment: Alignment.center,
+                      child: const Icon(Icons.image, color: Colors.white60),
+                    ),
+                  ),
                 ),
-                child: const Icon(Icons.image, color: Colors.white60),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -598,6 +616,17 @@ class _ExerciseCard extends StatelessWidget {
       ),
     );
   }
+}
+
+String _exerciseImageFor(String title) {
+  final lower = title.toLowerCase();
+  if (lower.contains('push')) {
+    return 'https://images.unsplash.com/photo-1517963628607-235ccdd5476b?q=80&w=600&auto=format&fit=crop';
+  }
+  if (lower.contains('squat')) {
+    return 'https://images.unsplash.com/photo-1546483875-ad9014c88eba?q=80&w=600&auto=format&fit=crop';
+  }
+  return 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=600&auto=format&fit=crop';
 }
 
 class _DetailsSection extends StatelessWidget {
