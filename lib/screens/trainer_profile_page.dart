@@ -3,6 +3,8 @@ import '../utils/app_text_style.dart';
 import '../services/profile_store.dart';
 import '../services/mock_api.dart';
 import '../models/er_models.dart';
+import '../services/auth.dart';
+import 'login_page.dart';
 import 'trainer_profile_edit_page.dart';
 
 class TrainerProfilePage extends StatefulWidget {
@@ -84,6 +86,25 @@ class _TrainerProfilePageState extends State<TrainerProfilePage> {
               _CertificationsCard(),
               const SizedBox(height: 16),
               _SpecializationsCard(),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () {
+                    MockAuthService.instance.signOut();
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (_) => const LoginPage()),
+                      (route) => false,
+                    );
+                  },
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    side: const BorderSide(color: Colors.red, width: 2),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('Sign Out', style: TextStyle(color: Colors.red)),
+                ),
+              ),
               const SizedBox(height: 24),
             ],
           );

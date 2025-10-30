@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'exercise_player_page.dart';
 
 class ExerciseDetailPage extends StatefulWidget {
   const ExerciseDetailPage({
@@ -304,7 +305,17 @@ class _ExerciseDetailPageState extends State<ExerciseDetailPage> {
       width: double.infinity,
       child: ElevatedButton(
         onPressed: () {
-          // Handle start exercise action
+          final rest = int.tryParse(widget.restTime.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => ExercisePlayerPage(
+                exerciseName: widget.exerciseName,
+                totalSets: widget.sets,
+                repsText: widget.reps,
+                restSeconds: rest,
+              ),
+            ),
+          );
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF4CAF50),
