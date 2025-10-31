@@ -7,6 +7,7 @@ import 'screens/profile_page.dart';
 import 'screens/login_page.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const ActiveXGymApp());
 }
 

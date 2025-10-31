@@ -66,7 +66,16 @@ class _WorkoutPlansPageState extends State<WorkoutPlansPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Workout Plans'),
+        title: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Workout Plans'),
+            Text(
+              MockAuthService.instance.currentUser.name,
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
+        ),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0,
@@ -188,7 +197,7 @@ class _WorkoutPlansPageState extends State<WorkoutPlansPage> {
                               children: [
                                 const Icon(Icons.person, size: 16, color: Colors.grey),
                                 const SizedBox(width: 6),
-                                Text('Coach Amy', style: AppTextStyle.regularText(size: 12, color: Colors.grey[800])),
+                                Text(MockAuthService.instance.currentUser.name, style: AppTextStyle.regularText(size: 12, color: Colors.grey[800])),
                               ],
                             ),
                             const SizedBox(height: 6),

@@ -32,18 +32,27 @@ class MockAuthService {
       _currentUser = UserModel(id: 't1', name: 'Coach Amy', email: lower, role: 'trainer');
       return _currentUser;
     }
-    // Keep simple admin rule for convenience (optional)
-    if (lower.contains('admin')) {
+    // Admin account (created by admin): static email
+    if (lower == 'admin@gmail.com' || lower.contains('admin')) {
       _currentUser = UserModel(id: 'a1', name: 'Admin', email: lower, role: 'admin');
       return _currentUser;
     }
-    // Otherwise, look up registered users in mock API (user-only)
+    // Otherwise, look up registered users/trainers in mock API
     final users = await const MockApiService().fetchUsers();
     final match = users.where((u) => u.email.toLowerCase() == lower).toList();
     if (match.isEmpty) {
       throw Exception('No user account found for $email. Please sign up first.');
     }
     final u = match.first;
+    // If trainer account created by admin, validate password
+    if (u.role.toLowerCase() == 'trainer') {
+      if ((u.password ?? '').isEmpty || u.password == password) {
+        _currentUser = UserModel(id: u.id, name: u.name, email: u.email, role: 'trainer');
+        return _currentUser;
+      }
+      throw Exception('Incorrect password');
+    }
+    // Regular users: no strict password validation in mock
     _currentUser = UserModel(id: u.id, name: u.name, email: u.email, role: 'user', goal: u.goal);
     return _currentUser;
   }

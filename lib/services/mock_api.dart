@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/workout.dart';
 import '../models/er_models.dart';
 import 'auth.dart';
@@ -33,7 +34,38 @@ class MockApiService {
     if (_erCache != null) return _erCache!;
     final jsonString = await rootBundle.loadString('assets/mock/er_data.json');
     _erCache = jsonDecode(jsonString) as Map<String, dynamic>;
+    // Merge any users saved locally from previous runs
+    final extras = await _loadSavedUsers();
+    if (extras.isNotEmpty) {
+      final list = (_erCache!['users'] as List<dynamic>);
+      // avoid duplicates by email
+      final existingEmails = list.map((e) => (e as Map<String, dynamic>)['email'] as String).toSet();
+      for (final u in extras) {
+        if (!existingEmails.contains(u['email'])) list.add(u);
+      }
+    }
     return _erCache!;
+  }
+
+  Future<List<Map<String, dynamic>>> _loadSavedUsers() async {
+    final prefs = await SharedPreferences.getInstance();
+    final s = prefs.getString('extra_users');
+    if (s == null || s.isEmpty) return [];
+    try {
+      final List<dynamic> arr = jsonDecode(s) as List<dynamic>;
+      return arr.cast<Map<String, dynamic>>();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<void> _saveUserExtra(Map<String, dynamic> userJson) async {
+    final prefs = await SharedPreferences.getInstance();
+    final current = await _loadSavedUsers();
+    // prevent duplicates by email
+    if (current.any((e) => e['email'] == userJson['email'])) return;
+    current.add(userJson);
+    await prefs.setString('extra_users', jsonEncode(current));
   }
 
   Future<List<UserModel>> fetchUsers() async {
@@ -43,18 +75,46 @@ class MockApiService {
         .toList();
   }
 
+  Future<void> deleteUser(String userId) async {
+    final m = await _readErData();
+    final users = (m['users'] as List<dynamic>);
+    users.removeWhere((e) => (e as Map<String, dynamic>)['id'] == userId);
+    // also update persisted extras
+    final current = await _loadSavedUsers();
+    current.removeWhere((e) => e['id'] == userId);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('extra_users', jsonEncode(current));
+  }
+
   Future<void> addUser(UserModel user) async {
     final m = await _readErData();
     final users = (m['users'] as List<dynamic>);
     // prevent duplicates by email
     if (users.any((e) => (e as Map<String, dynamic>)['email'] == user.email)) return;
-    users.add({
+    final json = {
       'id': user.id,
       'name': user.name,
       'email': user.email,
       'role': user.role,
       if (user.goal != null) 'goal': user.goal,
-    });
+    };
+    users.add(json);
+    await _saveUserExtra(json);
+  }
+
+  Future<void> addTrainer({required String name, required String email, required String password}) async {
+    final m = await _readErData();
+    final users = (m['users'] as List<dynamic>);
+    if (users.any((e) => (e as Map<String, dynamic>)['email'] == email)) return;
+    final json = {
+      'id': DateTime.now().millisecondsSinceEpoch.toString(),
+      'name': name,
+      'email': email,
+      'role': 'trainer',
+      'password': password,
+    };
+    users.add(json);
+    await _saveUserExtra(json);
   }
 
   Future<List<WorkoutPlanModel>> fetchWorkoutPlans() async {

@@ -5,18 +5,21 @@ class UserModel {
     required this.email,
     required this.role,
     this.goal,
+    this.password,
   });
   final String id;
   final String name;
   final String email;
   final String role; // user | trainer | admin
   final String? goal;
+  final String? password; // only used for trainer/admin in mock
   factory UserModel.fromJson(Map<String, dynamic> j) => UserModel(
         id: j['id'] as String,
         name: j['name'] as String,
         email: j['email'] as String,
         role: j['role'] as String,
         goal: j['goal'] as String?,
+        password: j['password'] as String?,
       );
 }
 

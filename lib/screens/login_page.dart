@@ -3,6 +3,7 @@ import '../services/auth.dart';
 import '../utils/app_text_style.dart';
 import '../main.dart';
 import 'trainer_main_screen.dart';
+import 'admin_user_management_page.dart';
 import 'register_page.dart';
 
 class LoginPage extends StatefulWidget {
@@ -14,8 +15,8 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
-  final _emailCtrl = TextEditingController(text: 'user@example.com');
-  final _passwordCtrl = TextEditingController(text: 'password');
+  final _emailCtrl = TextEditingController();
+  final _passwordCtrl = TextEditingController();
   bool _loading = false;
   bool _obscure = true;
 
@@ -38,7 +39,7 @@ class _LoginPageState extends State<LoginPage> {
       final isTrainer = MockAuthService.instance.isTrainer;
       final isAdmin = MockAuthService.instance.isAdmin;
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => (isTrainer || isAdmin) ? const TrainerMainScreen() : const MainScreen()),
+        MaterialPageRoute(builder: (_) => isAdmin ? const AdminUserManagementPage() : (isTrainer ? const TrainerMainScreen() : const MainScreen())),
       );
     } catch (e) {
       if (mounted) {

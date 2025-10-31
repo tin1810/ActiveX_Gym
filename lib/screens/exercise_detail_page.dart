@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'exercise_player_page.dart';
 
 class ExerciseDetailPage extends StatefulWidget {
@@ -11,6 +12,7 @@ class ExerciseDetailPage extends StatefulWidget {
     this.restTime = '60s',
     this.targetMuscles = const ['Chest', 'Shoulders', 'Triceps', 'Core'],
     this.equipment = 'None',
+    this.demoUrl = 'https://www.youtube.com/watch?v=IODxDxX7oi4',
   });
 
   final String exerciseName;
@@ -20,6 +22,7 @@ class ExerciseDetailPage extends StatefulWidget {
   final String restTime;
   final List<String> targetMuscles;
   final String equipment;
+  final String demoUrl;
 
   @override
   State<ExerciseDetailPage> createState() => _ExerciseDetailPageState();
@@ -125,29 +128,41 @@ class _ExerciseDetailPageState extends State<ExerciseDetailPage> {
                 left: 0,
                 right: 0,
                 child: Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 12,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.6),
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: const [
-                        Icon(Icons.videocam, color: Colors.white, size: 20),
-                        SizedBox(width: 8),
-                        Text(
-                          'Watch Demo',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(30),
+                    onTap: () async {
+                      final uri = Uri.parse(widget.demoUrl);
+                      final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+                      if (!ok && context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Could not open demo link')),
+                        );
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.6),
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Icon(Icons.videocam, color: Colors.white, size: 20),
+                          SizedBox(width: 8),
+                          Text(
+                            'Watch Demo',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
