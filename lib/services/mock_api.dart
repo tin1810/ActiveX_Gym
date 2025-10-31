@@ -43,6 +43,20 @@ class MockApiService {
         .toList();
   }
 
+  Future<void> addUser(UserModel user) async {
+    final m = await _readErData();
+    final users = (m['users'] as List<dynamic>);
+    // prevent duplicates by email
+    if (users.any((e) => (e as Map<String, dynamic>)['email'] == user.email)) return;
+    users.add({
+      'id': user.id,
+      'name': user.name,
+      'email': user.email,
+      'role': user.role,
+      if (user.goal != null) 'goal': user.goal,
+    });
+  }
+
   Future<List<WorkoutPlanModel>> fetchWorkoutPlans() async {
     final m = await _readErData();
     return (m['workout_plans'] as List<dynamic>)
@@ -83,6 +97,7 @@ class MockApiService {
       'description': challenge.description,
       'startDate': challenge.startDate,
       'endDate': challenge.endDate,
+      'createdBy': MockAuthService.instance.currentUser?.id,
       'participants': challenge.participants
           .map((p) => {
                 'userId': p.userId,

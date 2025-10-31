@@ -36,9 +36,16 @@ class _LoginPageState extends State<LoginPage> {
       );
       if (!mounted) return;
       final isTrainer = MockAuthService.instance.isTrainer;
+      final isAdmin = MockAuthService.instance.isAdmin;
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => isTrainer ? const TrainerMainScreen() : const MainScreen()),
+        MaterialPageRoute(builder: (_) => (isTrainer || isAdmin) ? const TrainerMainScreen() : const MainScreen()),
       );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Sign in failed: $e')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }

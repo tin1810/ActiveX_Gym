@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/auth.dart';
 
 class HeaderSection extends StatelessWidget {
   const HeaderSection({super.key});
@@ -35,9 +36,9 @@ class HeaderSection extends StatelessWidget {
                   fontWeight: FontWeight.w400,
                 ),
               ),
-              const Text(
-                'Willam',
-                style: TextStyle(
+              Text(
+                MockAuthService.instance.currentUser.name,
+                style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                   color: Colors.black87,

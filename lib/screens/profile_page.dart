@@ -58,7 +58,7 @@ class ProfilePage extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'William Johnson',
+                                MockAuthService.instance.currentUser.name,
                                 style: AppTextStyle.boldText(
                                   size: 24,
                                   color: Colors.black,

@@ -74,6 +74,7 @@ class CommunityChallengeModel {
     required this.startDate,
     required this.endDate,
     required this.participants,
+    this.createdBy,
   });
   final String id;
   final String title;
@@ -81,6 +82,7 @@ class CommunityChallengeModel {
   final String startDate;
   final String endDate;
   final List<ChallengeUserModel> participants;
+  final String? createdBy; // trainer id
   factory CommunityChallengeModel.fromJson(Map<String, dynamic> j) => CommunityChallengeModel(
         id: j['id'] as String,
         title: j['title'] as String,
@@ -90,6 +92,7 @@ class CommunityChallengeModel {
         participants: (j['participants'] as List<dynamic>)
             .map((e) => ChallengeUserModel.fromJson(e as Map<String, dynamic>))
             .toList(),
+        createdBy: j['createdBy'] as String?,
       );
 }
 

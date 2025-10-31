@@ -87,15 +87,20 @@ class _WorkoutPlanFormPageState extends State<WorkoutPlanFormPage> {
                   const SizedBox(height: 16),
                   _labeled('Assign to Client *'),
                   const SizedBox(height: 6),
-                  DropdownButtonFormField<String>(
-                    value: _clientId,
-                    items: const [
-                      DropdownMenuItem(value: 'u1', child: Text('Willam')),
-                      DropdownMenuItem(value: 'u2', child: Text('Lisa Anderson')),
-                    ],
-                    decoration: const InputDecoration(hintText: 'Select client'),
-                    onChanged: (v) => setState(() => _clientId = v),
-                    validator: (v) => v == null ? 'Required' : null,
+                  FutureBuilder<List<UserModel>>(
+                    future: const MockApiService().fetchUsers(),
+                    builder: (context, snapshot) {
+                      final users = (snapshot.data ?? []).where((u) => u.role == 'user').toList();
+                      return DropdownButtonFormField<String>(
+                        value: _clientId,
+                        items: users
+                            .map((u) => DropdownMenuItem(value: u.id, child: Text(u.name)))
+                            .toList(),
+                        decoration: const InputDecoration(hintText: 'Select client'),
+                        onChanged: (v) => setState(() => _clientId = v),
+                        validator: (v) => v == null ? 'Required' : null,
+                      );
+                    },
                   ),
                   const SizedBox(height: 16),
                   Row(
