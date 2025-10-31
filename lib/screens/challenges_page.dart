@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/mock_api.dart';
+import '../services/auth.dart';
 import '../models/er_models.dart';
 import '../utils/app_text_style.dart';
 import 'challenge_form_page.dart';
@@ -22,16 +23,18 @@ class _ChallengesPageState extends State<ChallengesPage> {
         foregroundColor: Colors.black,
         elevation: 0,
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          final created = await Navigator.of(context).push<bool>(
-            MaterialPageRoute(builder: (_) => const ChallengeFormPage()),
-          );
-          if (created == true) (context as Element).reassemble();
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('Create'),
-      ),
+      floatingActionButton: (MockAuthService.instance.isTrainer || MockAuthService.instance.isAdmin)
+          ? FloatingActionButton.extended(
+              onPressed: () async {
+                final created = await Navigator.of(context).push<bool>(
+                  MaterialPageRoute(builder: (_) => const ChallengeFormPage()),
+                );
+                if (created == true) (context as Element).reassemble();
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('Create'),
+            )
+          : null,
       body: FutureBuilder<List<CommunityChallengeModel>>(
         future: api.fetchChallenges(),
         builder: (context, snapshot) {
@@ -72,21 +75,23 @@ class _ChallengesPageState extends State<ChallengesPage> {
                         ),
                         const SizedBox(width: 10),
                         Expanded(child: Text(c.title, style: AppTextStyle.semiBoldText(size: 16, color: Colors.black))),
-                        PopupMenuButton<String>(
-                          onSelected: (v) async {
-                            if (v == 'edit') {
-                              await _editDialog(context, c);
-                              setState(() {});
-                            } else if (v == 'delete') {
-                              await api.deleteChallenge(c.id);
-                              setState(() {});
-                            }
-                          },
-                          itemBuilder: (_) => const [
-                            PopupMenuItem(value: 'edit', child: Text('Edit')),
-                            PopupMenuItem(value: 'delete', child: Text('Delete')),
-                          ],
-                        ),
+                        (MockAuthService.instance.isTrainer || MockAuthService.instance.isAdmin)
+                            ? PopupMenuButton<String>(
+                                onSelected: (v) async {
+                                  if (v == 'edit') {
+                                    await _editDialog(context, c);
+                                    setState(() {});
+                                  } else if (v == 'delete') {
+                                    await api.deleteChallenge(c.id);
+                                    setState(() {});
+                                  }
+                                },
+                                itemBuilder: (_) => const [
+                                  PopupMenuItem(value: 'edit', child: Text('Edit')),
+                                  PopupMenuItem(value: 'delete', child: Text('Delete')),
+                                ],
+                              )
+                            : const SizedBox.shrink(),
                       ],
                     ),
                     const SizedBox(height: 8),

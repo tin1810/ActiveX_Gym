@@ -28,14 +28,14 @@ class HomePage extends StatelessWidget {
               // Quick Links row (Plans, Challenges, Nutrition, Logs)
               Row(
                 children: const [
-                  Expanded(
-                    child: _QuickLink(
-                      icon: Icons.rule_folder,
-                      label: 'Plans',
-                      routeType: _QuickRoute.plans,
-                    ),
-                  ),
-                  SizedBox(width: 12),
+                  // Expanded(
+                  //   child: _QuickLink(
+                  //     icon: Icons.rule_folder,
+                  //     label: 'Plans',
+                  //     routeType: _QuickRoute.plans,
+                  //   ),
+                  // ),
+                  // SizedBox(width: 12),
                   Expanded(
                     child: _QuickLink(
                       icon: Icons.emoji_events,

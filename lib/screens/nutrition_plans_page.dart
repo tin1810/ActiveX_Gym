@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../services/mock_api.dart';
 import '../models/er_models.dart';
 import '../utils/app_text_style.dart';
+import '../services/auth.dart';
 
 class NutritionPlansPage extends StatefulWidget {
   const NutritionPlansPage({super.key});
@@ -75,12 +76,13 @@ class _NutritionPlansPageState extends State<NutritionPlansPage> {
             padding: const EdgeInsets.all(16),
             children: [
               _AdminStatsRowN(total: plans.length), const SizedBox(height: 12),
-              _CreateButtonN(onTap: () async {
-                final created = await Navigator.of(context).push<bool>(
-                  MaterialPageRoute(builder: (_) => const NutritionPlanFormPage()),
-                );
-                if (created == true) setState(() {});
-              }),
+              if (MockAuthService.instance.isTrainer || MockAuthService.instance.isAdmin)
+                _CreateButtonN(onTap: () async {
+                  final created = await Navigator.of(context).push<bool>(
+                    MaterialPageRoute(builder: (_) => const NutritionPlanFormPage()),
+                  );
+                  if (created == true) setState(() {});
+                }),
               const SizedBox(height: 12),
               _FilterChipsN(),
             const SizedBox(height: 12),
@@ -113,19 +115,20 @@ class _NutritionPlansPageState extends State<NutritionPlansPage> {
                         child: Text('${p.dailyCaloriesTarget} kcal', style: AppTextStyle.mediumText(size: 11, color: const Color(0xFFFF9800))),
                       ),
                       const SizedBox(width: 6),
-                      PopupMenuButton<String>(
-                        onSelected: (v) {
-                          if (v == 'edit') {
-                            _editDialog(p);
-                          } else if (v == 'delete') {
-                            _delete(p.id);
-                          }
-                        },
-                        itemBuilder: (_) => const [
-                          PopupMenuItem(value: 'edit', child: Text('Edit')),
-                          PopupMenuItem(value: 'delete', child: Text('Delete')),
-                        ],
-                      ),
+                      if (MockAuthService.instance.isTrainer || MockAuthService.instance.isAdmin)
+                        PopupMenuButton<String>(
+                          onSelected: (v) {
+                            if (v == 'edit') {
+                              _editDialog(p);
+                            } else if (v == 'delete') {
+                              _delete(p.id);
+                            }
+                          },
+                          itemBuilder: (_) => const [
+                            PopupMenuItem(value: 'edit', child: Text('Edit')),
+                            PopupMenuItem(value: 'delete', child: Text('Delete')),
+                          ],
+                        ),
                     ]),
                     const SizedBox(height: 8),
                     // Badges row
