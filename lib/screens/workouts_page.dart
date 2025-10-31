@@ -10,6 +10,7 @@ import 'progress_logs_page.dart';
 import '../utils/app_text_style.dart';
 import 'workout_detail_page.dart';
 import '../services/auth.dart';
+import 'workout_plan_detail_page.dart';
 
 class WorkoutsPage extends StatefulWidget {
   const WorkoutsPage({super.key});
@@ -171,21 +172,27 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
                                     child: Text('Trainer Assigned Workout', style: AppTextStyle.semiBoldText(size: 20, color: Colors.black)),
                                   ),
                                   const SizedBox(height: 12),
-                                  ...plans.take(4).map((p) => Container(
-                                        margin: const EdgeInsets.only(bottom: 12, left: 16, right: 16),
-                                        padding: const EdgeInsets.all(14),
-                                        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey.shade300)),
-                                        child: Row(children: [
-                                          Container(width: 40, height: 40, decoration: BoxDecoration(color: const Color(0xFFEAF7D5), borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.rule_folder, color: Color(0xFF7ED957))),
-                                          const SizedBox(width: 10),
-                                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                            Text(p.name, style: AppTextStyle.semiBoldText(size: 15, color: Colors.black)),
-                                            const SizedBox(height: 4),
-                                            Text(p.description, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyle.regularText(size: 12, color: Colors.grey[700])),
-                                          ])),
-                                          const SizedBox(width: 8),
-                                          Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(12)), child: Text(p.difficulty, style: AppTextStyle.mediumText(size: 11, color: Colors.grey[800]!))),
-                                        ]),
+                                  ...plans.take(4).map((p) => InkWell(
+                                        onTap: () => Navigator.of(context).push(
+                                          MaterialPageRoute(builder: (_) => WorkoutPlanDetailPage(plan: p)),
+                                        ),
+                                        borderRadius: BorderRadius.circular(16),
+                                        child: Container(
+                                          margin: const EdgeInsets.only(bottom: 12, left: 16, right: 16),
+                                          padding: const EdgeInsets.all(14),
+                                          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey.shade300)),
+                                          child: Row(children: [
+                                            Container(width: 40, height: 40, decoration: BoxDecoration(color: const Color(0xFFEAF7D5), borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.rule_folder, color: Color(0xFF7ED957))),
+                                            const SizedBox(width: 10),
+                                            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                              Text(p.name, style: AppTextStyle.semiBoldText(size: 15, color: Colors.black)),
+                                              const SizedBox(height: 4),
+                                              Text(p.description, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyle.regularText(size: 12, color: Colors.grey[700])),
+                                            ])),
+                                            const SizedBox(width: 8),
+                                            Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(12)), child: Text(p.difficulty, style: AppTextStyle.mediumText(size: 11, color: Colors.grey[800]!))),
+                                          ]),
+                                        ),
                                       )),
                                   Padding(
                                     padding: const EdgeInsets.symmetric(horizontal: 16),
