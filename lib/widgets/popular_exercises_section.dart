@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../screens/workout_detail_page.dart';
-import '../screens/see_all_page.dart';
+import '../screens/user/workout_detail_page.dart';
+import '../screens/user/see_all_page.dart';
 
 class PopularExercisesSection extends StatelessWidget {
   const PopularExercisesSection({super.key});

@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import '../utils/app_text_style.dart';
+import '../../utils/app_text_style.dart';
 
 class ExercisePlayerPage extends StatefulWidget {
   const ExercisePlayerPage({

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import '../services/auth.dart';
-import '../utils/app_text_style.dart';
-import '../main.dart';
-import 'trainer_main_screen.dart';
-import 'admin_user_management_page.dart';
+import '../../services/auth.dart';
+import '../../utils/app_text_style.dart';
+import '../../main.dart';
+import '../trainer/trainer_main_screen.dart';
+import '../admin/admin_user_management_page.dart';
 import 'register_page.dart';
 
 class LoginPage extends StatefulWidget {

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../widgets/header_section.dart';
-import '../widgets/workout_progress_card.dart';
-import '../widgets/today_workouts_card.dart';
-import '../widgets/popular_exercises_section.dart';
+import '../../widgets/header_section.dart';
+import '../../widgets/workout_progress_card.dart';
+import '../../widgets/today_workouts_card.dart';
+import '../../widgets/popular_exercises_section.dart';
 import 'workout_plans_page.dart';
 import 'challenges_page.dart';
 import 'nutrition_plans_page.dart';

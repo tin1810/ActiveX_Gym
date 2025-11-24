@@ -1,10 +1,9 @@
-import 'package:activex_gym_app/widgets/trainer_fab.dart';
-import 'nutrition_plan_form_page.dart';
+import '../trainer/nutrition_plan_form_page.dart';
 import 'package:flutter/material.dart';
-import '../services/mock_api.dart';
-import '../models/er_models.dart';
-import '../utils/app_text_style.dart';
-import '../services/auth.dart';
+import '../../services/mock_api.dart';
+import '../../models/er_models.dart';
+import '../../utils/app_text_style.dart';
+import '../../services/auth.dart';
 
 class NutritionPlansPage extends StatefulWidget {
   const NutritionPlansPage({super.key});

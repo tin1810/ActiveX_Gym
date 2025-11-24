@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth.dart';
-import '../screens/workout_plan_form_page.dart';
-import '../screens/nutrition_plan_form_page.dart';
+import '../screens/trainer/workout_plan_form_page.dart';
+import '../screens/trainer/nutrition_plan_form_page.dart';
 
 class TrainerFab extends StatelessWidget {
   const TrainerFab({super.key, required this.page, this.backgroundColor = const Color(0xFFE9E1FF), this.foregroundColor = const Color(0xFF5E35B1)});

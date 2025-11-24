@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import '../services/mock_api.dart';
-import '../services/auth.dart';
-import '../models/er_models.dart';
-import '../utils/app_text_style.dart';
-import 'login_page.dart';
+import '../../services/mock_api.dart';
+import '../../services/auth.dart';
+import '../../models/er_models.dart';
+import '../../utils/app_text_style.dart';
+import '../shared/login_page.dart';
 
 class AdminUserManagementPage extends StatefulWidget {
   const AdminUserManagementPage({super.key});

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../models/er_models.dart';
-import '../services/mock_api.dart';
-import '../services/auth.dart';
+import '../../models/er_models.dart';
+import '../../services/mock_api.dart';
+import '../../services/auth.dart';
 
 class NutritionPlanFormPage extends StatefulWidget {
   const NutritionPlanFormPage({super.key});

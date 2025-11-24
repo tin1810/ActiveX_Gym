@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../services/mock_api.dart';
-import '../models/er_models.dart';
-import '../utils/app_text_style.dart';
+import '../../services/mock_api.dart';
+import '../../models/er_models.dart';
+import '../../utils/app_text_style.dart';
 
 class ProgressLogsPage extends StatelessWidget {
   const ProgressLogsPage({super.key});

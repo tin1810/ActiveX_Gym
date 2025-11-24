@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../utils/app_text_style.dart';
+import '../../utils/app_text_style.dart';
 
 class ProgressPage extends StatelessWidget {
   const ProgressPage({super.key});

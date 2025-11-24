@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import '../utils/app_text_style.dart';
-import '../services/profile_store.dart';
-import '../services/mock_api.dart';
-import '../models/er_models.dart';
-import '../services/auth.dart';
-import 'login_page.dart';
+import '../../utils/app_text_style.dart';
+import '../../services/profile_store.dart';
+import '../../services/mock_api.dart';
+import '../../models/er_models.dart';
+import '../../services/auth.dart';
+import '../shared/login_page.dart';
 import 'trainer_profile_edit_page.dart';
 
 class TrainerProfilePage extends StatefulWidget {
@@ -57,12 +57,18 @@ class _TrainerProfilePageState extends State<TrainerProfilePage> {
             return const Center(child: CircularProgressIndicator());
           }
           final p = snapshot.data!;
+          // Get logged-in trainer's name and use it instead of profile name
+          final loggedInTrainer = MockAuthService.instance.currentUser;
+          final displayName = loggedInTrainer.role.toLowerCase() == 'trainer' 
+              ? loggedInTrainer.name 
+              : p.name;
+          
           // keep ProfileStore in sync for edit screen defaults
           ProfileStore.trainer
-            ..name = p.name
+            ..name = displayName
             ..title = p.title
             ..bio = p.bio
-            ..email = p.email
+            ..email = loggedInTrainer.role.toLowerCase() == 'trainer' ? loggedInTrainer.email : p.email
             ..phone = p.phone
             ..location = p.location
             ..clients = p.clients
@@ -120,6 +126,8 @@ class _HeaderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = ProfileStore.trainer;
+    // Get logged-in trainer's name from auth service
+    final loggedInTrainer = MockAuthService.instance.currentUser;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -137,7 +145,7 @@ class _HeaderCard extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(p.name, style: AppTextStyle.semiBoldText(size: 18, color: Colors.white)),
+                Text(loggedInTrainer.name, style: AppTextStyle.semiBoldText(size: 18, color: Colors.white)),
                 const SizedBox(height: 2),
                 Text(p.title, style: const TextStyle(color: Colors.white70)),
                 const SizedBox(height: 6),

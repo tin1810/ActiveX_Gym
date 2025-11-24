@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../screens/workout_detail_page.dart';
+import '../screens/user/workout_detail_page.dart';
 
 class TodayWorkoutsCard extends StatelessWidget {
   const TodayWorkoutsCard({super.key});

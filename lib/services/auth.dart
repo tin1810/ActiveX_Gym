@@ -27,31 +27,32 @@ class MockAuthService {
     // no real verification; simulate latency
     await Future.delayed(const Duration(milliseconds: 250));
     final lower = email.toLowerCase().trim();
-    // Static trainer account (created by admin)
-    if (lower == 'trainer@gmail.com') {
-      _currentUser = UserModel(id: 't1', name: 'Coach Amy', email: lower, role: 'trainer');
-      return _currentUser;
-    }
-    // Admin account (created by admin): static email
+    
+    // Admin account: static email check
     if (lower == 'admin@gmail.com' || lower.contains('admin')) {
       _currentUser = UserModel(id: 'a1', name: 'Admin', email: lower, role: 'admin');
       return _currentUser;
     }
-    // Otherwise, look up registered users/trainers in mock API
+    
+    // Look up all users/trainers in mock API (including trainers created by admin)
     final users = await const MockApiService().fetchUsers();
-    final match = users.where((u) => u.email.toLowerCase() == lower).toList();
+    final match = users.where((u) => u.email.toLowerCase().trim() == lower).toList();
     if (match.isEmpty) {
       throw Exception('No user account found for $email. Please sign up first.');
     }
     final u = match.first;
-    // If trainer account created by admin, validate password
+    
+    // Handle trainer accounts created by admin - validate password
     if (u.role.toLowerCase() == 'trainer') {
-      if ((u.password ?? '').isEmpty || u.password == password) {
+      final storedPassword = u.password ?? '';
+      // If password is set, it must match; if empty/null, allow login (for backward compatibility)
+      if (storedPassword.isEmpty || storedPassword == password) {
         _currentUser = UserModel(id: u.id, name: u.name, email: u.email, role: 'trainer');
         return _currentUser;
       }
       throw Exception('Incorrect password');
     }
+    
     // Regular users: no strict password validation in mock
     _currentUser = UserModel(id: u.id, name: u.name, email: u.email, role: 'user', goal: u.goal);
     return _currentUser;

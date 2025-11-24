@@ -1,8 +1,8 @@
 import 'package:activex_gym_app/widgets/trainer_fab.dart';
 import 'package:flutter/material.dart';
-import 'workout_plans_page.dart';
-import 'nutrition_plans_page.dart';
-import 'challenges_page.dart';
+import '../user/workout_plans_page.dart';
+import '../user/nutrition_plans_page.dart';
+import '../user/challenges_page.dart';
 import 'trainer_profile_page.dart';
 
 class TrainerMainScreen extends StatefulWidget {

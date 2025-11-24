@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../services/profile_store.dart';
-import '../services/mock_api.dart';
-import '../models/er_models.dart';
+import '../../services/profile_store.dart';
+import '../../services/mock_api.dart';
+import '../../models/er_models.dart';
 
 class TrainerProfileEditPage extends StatefulWidget {
   const TrainerProfileEditPage({super.key});

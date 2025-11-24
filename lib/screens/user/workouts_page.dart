@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../services/mock_api.dart';
-import '../models/workout.dart';
-import '../models/er_models.dart';
+import '../../services/mock_api.dart';
+import '../../models/workout.dart';
+import '../../models/er_models.dart';
 import 'workout_plans_page.dart';
 import 'challenges_page.dart';
 import 'nutrition_plans_page.dart';
 import 'progress_logs_page.dart';
-import '../utils/app_text_style.dart';
+import '../../utils/app_text_style.dart';
 import 'workout_detail_page.dart';
-import '../services/auth.dart';
+import '../../services/auth.dart';
 import 'workout_plan_detail_page.dart';
 
 class WorkoutsPage extends StatefulWidget {

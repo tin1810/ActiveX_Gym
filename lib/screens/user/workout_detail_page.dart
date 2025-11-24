@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../services/mock_api.dart';
-import '../models/workout.dart';
-import '../models/exercise.dart';
+import '../../services/mock_api.dart';
+import '../../models/workout.dart';
+import '../../models/exercise.dart';
 import 'exercise_detail_page.dart';
 
 class WorkoutDetailPage extends StatefulWidget {

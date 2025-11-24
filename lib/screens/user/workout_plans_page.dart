@@ -1,11 +1,11 @@
 import 'package:activex_gym_app/widgets/trainer_fab.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../services/mock_api.dart';
-import '../models/er_models.dart';
-import '../utils/app_text_style.dart';
-import '../services/auth.dart';
-import 'workout_plan_form_page.dart';
+import '../../services/mock_api.dart';
+import '../../models/er_models.dart';
+import '../../utils/app_text_style.dart';
+import '../../services/auth.dart';
+import '../trainer/workout_plan_form_page.dart';
 
 class WorkoutPlansPage extends StatefulWidget {
   const WorkoutPlansPage({super.key});

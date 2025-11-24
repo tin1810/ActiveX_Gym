@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../models/er_models.dart';
-import '../utils/app_text_style.dart';
-import '../services/auth.dart';
+import '../../models/er_models.dart';
+import '../../utils/app_text_style.dart';
+import '../../services/auth.dart';
 
 class WorkoutPlanDetailPage extends StatefulWidget {
   const WorkoutPlanDetailPage({super.key, required this.plan});

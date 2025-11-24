@@ -38,10 +38,14 @@ class MockApiService {
     final extras = await _loadSavedUsers();
     if (extras.isNotEmpty) {
       final list = (_erCache!['users'] as List<dynamic>);
-      // avoid duplicates by email
-      final existingEmails = list.map((e) => (e as Map<String, dynamic>)['email'] as String).toSet();
+      // avoid duplicates by email (case-insensitive)
+      final existingEmails = list.map((e) => ((e as Map<String, dynamic>)['email'] as String).toLowerCase()).toSet();
       for (final u in extras) {
-        if (!existingEmails.contains(u['email'])) list.add(u);
+        final email = (u['email'] as String? ?? '').toLowerCase();
+        if (!existingEmails.contains(email)) {
+          list.add(u);
+          existingEmails.add(email); // Update set to prevent duplicates in same merge
+        }
       }
     }
     return _erCache!;
@@ -62,8 +66,9 @@ class MockApiService {
   Future<void> _saveUserExtra(Map<String, dynamic> userJson) async {
     final prefs = await SharedPreferences.getInstance();
     final current = await _loadSavedUsers();
-    // prevent duplicates by email
-    if (current.any((e) => e['email'] == userJson['email'])) return;
+    // prevent duplicates by email (case-insensitive)
+    final newEmail = (userJson['email'] as String? ?? '').toLowerCase();
+    if (current.any((e) => (e['email'] as String? ?? '').toLowerCase() == newEmail)) return;
     current.add(userJson);
     await prefs.setString('extra_users', jsonEncode(current));
   }
@@ -89,12 +94,13 @@ class MockApiService {
   Future<void> addUser(UserModel user) async {
     final m = await _readErData();
     final users = (m['users'] as List<dynamic>);
-    // prevent duplicates by email
-    if (users.any((e) => (e as Map<String, dynamic>)['email'] == user.email)) return;
+    // prevent duplicates by email (case-insensitive)
+    final emailLower = user.email.toLowerCase().trim();
+    if (users.any((e) => ((e as Map<String, dynamic>)['email'] as String).toLowerCase().trim() == emailLower)) return;
     final json = {
       'id': user.id,
       'name': user.name,
-      'email': user.email,
+      'email': user.email.trim(),
       'role': user.role,
       if (user.goal != null) 'goal': user.goal,
     };
@@ -105,11 +111,13 @@ class MockApiService {
   Future<void> addTrainer({required String name, required String email, required String password}) async {
     final m = await _readErData();
     final users = (m['users'] as List<dynamic>);
-    if (users.any((e) => (e as Map<String, dynamic>)['email'] == email)) return;
+    // Check for duplicates case-insensitively
+    final emailLower = email.toLowerCase().trim();
+    if (users.any((e) => ((e as Map<String, dynamic>)['email'] as String).toLowerCase().trim() == emailLower)) return;
     final json = {
       'id': DateTime.now().millisecondsSinceEpoch.toString(),
       'name': name,
-      'email': email,
+      'email': email.trim(),
       'role': 'trainer',
       'password': password,
     };
@@ -198,11 +206,18 @@ class MockApiService {
   Future<TrainerProfileModel> fetchTrainerProfile() async {
     final m = await _readErData();
     Map<String, dynamic>? mp = m['trainer_profile'] as Map<String, dynamic>?;
+    
+    // Get logged-in trainer's name from auth service
+    final loggedInTrainer = MockAuthService.instance.currentUser;
+    final trainerName = loggedInTrainer.role.toLowerCase() == 'trainer' 
+        ? loggedInTrainer.name 
+        : 'Coach Jason Miller';
+    
     mp ??= {
-      'name': 'Coach Jason Miller',
+      'name': trainerName,
       'title': 'Certified Personal Trainer',
       'bio': 'Passionate fitness coach specializing in strength training and nutrition. Helping clients transform their lives for 8+ years.',
-      'email': 'jason.miller@activextra.com',
+      'email': loggedInTrainer.role.toLowerCase() == 'trainer' ? loggedInTrainer.email : 'jason.miller@activextra.com',
       'phone': '+1 (555) 123-4567',
       'location': 'Los Angeles, CA',
       'clients': 24,
@@ -210,6 +225,13 @@ class MockApiService {
       'rating': 4.9,
       'avatarUrl': 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=300&h=300&fit=crop',
     };
+    
+    // Update name and email with logged-in trainer's info if trainer is logged in
+    if (loggedInTrainer.role.toLowerCase() == 'trainer') {
+      mp['name'] = trainerName;
+      mp['email'] = loggedInTrainer.email;
+    }
+    
     m['trainer_profile'] = mp;
     return TrainerProfileModel.fromJson(mp);
   }

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import '../services/mock_api.dart';
-import '../services/auth.dart';
-import '../models/er_models.dart';
-import '../utils/app_text_style.dart';
-import 'challenge_form_page.dart';
+import '../../services/mock_api.dart';
+import '../../services/auth.dart';
+import '../../models/er_models.dart';
+import '../../utils/app_text_style.dart';
+import '../trainer/challenge_form_page.dart';
 
 class ChallengesPage extends StatefulWidget {
   const ChallengesPage({super.key});

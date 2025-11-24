@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../utils/app_text_style.dart';
-import '../services/auth.dart';
-import 'login_page.dart';
+import '../../utils/app_text_style.dart';
+import '../../services/auth.dart';
+import '../shared/login_page.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});

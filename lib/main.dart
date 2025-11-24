@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'screens/home_page.dart';
-import 'screens/workouts_page.dart';
-import 'screens/progress_page.dart';
-import 'screens/profile_page.dart';
-import 'screens/login_page.dart';
+import 'screens/user/home_page.dart';
+import 'screens/user/workouts_page.dart';
+import 'screens/user/progress_page.dart';
+import 'screens/user/profile_page.dart';
+import 'screens/shared/login_page.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
