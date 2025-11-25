@@ -31,6 +31,12 @@ class WorkoutPlanModel {
     required this.description,
     required this.difficulty,
     required this.workouts,
+    this.durationMinutes,
+    this.kcal,
+    this.exercisesCount,
+    this.tags,
+    this.equipment,
+    this.imageUrl,
   });
   final String id;
   final String trainerId;
@@ -38,6 +44,12 @@ class WorkoutPlanModel {
   final String description;
   final String difficulty;
   final List<PlanWorkoutModel> workouts;
+  final int? durationMinutes;
+  final int? kcal;
+  final int? exercisesCount;
+  final List<String>? tags;
+  final String? equipment;
+  final String? imageUrl;
   factory WorkoutPlanModel.fromJson(Map<String, dynamic> j) => WorkoutPlanModel(
         id: j['id'] as String,
         trainerId: j['trainerId'] as String,
@@ -47,6 +59,12 @@ class WorkoutPlanModel {
         workouts: (j['workouts'] as List<dynamic>)
             .map((e) => PlanWorkoutModel.fromJson(e as Map<String, dynamic>))
             .toList(),
+        durationMinutes: j['durationMinutes'] as int?,
+        kcal: j['kcal'] as int?,
+        exercisesCount: j['exercisesCount'] as int?,
+        tags: j['tags'] != null ? (j['tags'] as List<dynamic>).cast<String>() : null,
+        equipment: j['equipment'] as String?,
+        imageUrl: j['imageUrl'] as String?,
       );
 }
 

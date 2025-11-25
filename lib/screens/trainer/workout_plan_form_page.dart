@@ -1,4 +1,7 @@
+import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../models/er_models.dart';
 import '../../services/mock_api.dart';
 import '../../services/auth.dart';
@@ -15,9 +18,17 @@ class _WorkoutPlanFormPageState extends State<WorkoutPlanFormPage> {
   final _nameCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
   final _goalCtrl = TextEditingController();
+  final _durationMinutesCtrl = TextEditingController();
+  final _kcalCtrl = TextEditingController();
+  final _equipmentCtrl = TextEditingController();
+  final _tagInputCtrl = TextEditingController();
+  final ImagePicker _imagePicker = ImagePicker();
   String _difficulty = 'beginner';
   String? _clientId;
   int _durationWeeks = 4;
+  final List<String> _tags = [];
+  XFile? _selectedImage;
+  String? _imageBase64;
 
   final List<_DayPlan> _days = [
     _DayPlan(dayName: 'Monday', exercises: [
@@ -33,17 +44,75 @@ class _WorkoutPlanFormPageState extends State<WorkoutPlanFormPage> {
     });
   }
 
+  void _addTag() {
+    final tag = _tagInputCtrl.text.trim();
+    if (tag.isNotEmpty && !_tags.contains(tag)) {
+      setState(() {
+        _tags.add(tag);
+        _tagInputCtrl.clear();
+      });
+    }
+  }
+
+  void _removeTag(String tag) {
+    setState(() {
+      _tags.remove(tag);
+    });
+  }
+
+  Future<void> _pickImage() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 85,
+      );
+      if (image != null) {
+        setState(() {
+          _selectedImage = image;
+        });
+        // Convert image to base64 for storage
+        final bytes = await image.readAsBytes();
+        _imageBase64 = base64Encode(bytes);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error picking image: $e')),
+        );
+      }
+    }
+  }
+
+  void _removeImage() {
+    setState(() {
+      _selectedImage = null;
+      _imageBase64 = null;
+    });
+  }
+
   @override
   void dispose() {
     _nameCtrl.dispose();
     _descCtrl.dispose();
     _goalCtrl.dispose();
+    _durationMinutesCtrl.dispose();
+    _kcalCtrl.dispose();
+    _equipmentCtrl.dispose();
+    _tagInputCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     final trainer = MockAuthService.instance.currentUser;
+    // Calculate exercises count from all days
+    int totalExercises = 0;
+    for (final day in _days) {
+      totalExercises += day.exercises.length;
+    }
+
     final plan = WorkoutPlanModel(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       trainerId: trainer.id,
@@ -51,6 +120,12 @@ class _WorkoutPlanFormPageState extends State<WorkoutPlanFormPage> {
       description: _descCtrl.text.trim(),
       difficulty: _difficulty,
       workouts: const [],
+      durationMinutes: int.tryParse(_durationMinutesCtrl.text),
+      kcal: int.tryParse(_kcalCtrl.text),
+      exercisesCount: totalExercises > 0 ? totalExercises : null,
+      tags: _tags.isNotEmpty ? _tags : null,
+      equipment: _equipmentCtrl.text.trim().isEmpty ? null : _equipmentCtrl.text.trim(),
+      imageUrl: _imageBase64 != null ? 'data:image/jpeg;base64,$_imageBase64' : null,
     );
     await const MockApiService().addWorkoutPlan(plan);
     if (!mounted) return;
@@ -148,6 +223,135 @@ class _WorkoutPlanFormPageState extends State<WorkoutPlanFormPage> {
                     maxLines: 3,
                     decoration: const InputDecoration(hintText: 'e.g., Build muscle, lose weight, improve endurance'),
                     validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _labeled('Duration (min)'),
+                            const SizedBox(height: 6),
+                            TextFormField(
+                              controller: _durationMinutesCtrl,
+                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(hintText: 'e.g., 25'),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _labeled('Calories (kcal)'),
+                            const SizedBox(height: 6),
+                            TextFormField(
+                              controller: _kcalCtrl,
+                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(hintText: 'e.g., 300'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _labeled('Tags'),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _tagInputCtrl,
+                          decoration: const InputDecoration(
+                            hintText: 'Add tag (e.g., Cardio, Full Body)',
+                          ),
+                          onSubmitted: (_) => _addTag(),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        onPressed: _addTag,
+                        icon: const Icon(Icons.add_circle),
+                        color: Colors.green,
+                      ),
+                    ],
+                  ),
+                  if (_tags.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _tags.map((tag) {
+                        return Chip(
+                          label: Text(tag),
+                          onDeleted: () => _removeTag(tag),
+                          deleteIcon: const Icon(Icons.close, size: 18),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  _labeled('Equipment'),
+                  const SizedBox(height: 6),
+                  TextFormField(
+                    controller: _equipmentCtrl,
+                    decoration: const InputDecoration(
+                      hintText: 'e.g., None, Dumbbells, Gym',
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _labeled('Workout Image'),
+                  const SizedBox(height: 6),
+                  GestureDetector(
+                    onTap: _pickImage,
+                    child: Container(
+                      height: 150,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey[300]!),
+                      ),
+                      child: _selectedImage != null
+                          ? Stack(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.file(
+                                    File(_selectedImage!.path),
+                                    width: double.infinity,
+                                    height: 150,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                                Positioned(
+                                  top: 8,
+                                  right: 8,
+                                  child: IconButton(
+                                    onPressed: _removeImage,
+                                    icon: const Icon(Icons.close, color: Colors.white),
+                                    style: IconButton.styleFrom(
+                                      backgroundColor: Colors.black.withOpacity(0.6),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            )
+                          : Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.add_photo_alternate, size: 48, color: Colors.grey[400]),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Tap to select image from gallery',
+                                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                                ),
+                              ],
+                            ),
+                    ),
                   ),
                 ],
               ),

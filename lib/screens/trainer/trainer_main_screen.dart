@@ -4,6 +4,7 @@ import '../user/workout_plans_page.dart';
 import '../user/nutrition_plans_page.dart';
 import '../user/challenges_page.dart';
 import 'trainer_profile_page.dart';
+import 'exercises_management_page.dart';
 
 class TrainerMainScreen extends StatefulWidget {
   const TrainerMainScreen({super.key});
@@ -18,6 +19,7 @@ class _TrainerMainScreenState extends State<TrainerMainScreen> {
     WorkoutPlansPage(),
     NutritionPlansPage(),
     ChallengesPage(),
+    ExercisesManagementPage(),
     TrainerProfilePage(),
   ];
 
@@ -38,10 +40,12 @@ class _TrainerMainScreenState extends State<TrainerMainScreen> {
           onTap: (i) => setState(() => _idx = i),
           selectedItemColor: active,
           unselectedItemColor: Colors.grey[600],
+          type: BottomNavigationBarType.fixed,
           items: const [
             BottomNavigationBarItem(icon: Icon(Icons.fitness_center,), label: 'Plans'),
             BottomNavigationBarItem(icon: Icon(Icons.restaurant_menu), label: 'Nutrition'),
             BottomNavigationBarItem(icon: Icon(Icons.emoji_events), label: 'Challenges'),
+            BottomNavigationBarItem(icon: Icon(Icons.sports_gymnastics), label: 'Exercises'),
             BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profile'),
           ],
         ),

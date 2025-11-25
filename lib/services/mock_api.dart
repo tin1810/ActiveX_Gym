@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/workout.dart';
+import '../models/exercise.dart';
 import '../models/er_models.dart';
 import 'auth.dart';
 
@@ -48,6 +49,8 @@ class MockApiService {
         }
       }
     }
+    // Merge saved exercises
+    await _mergeSavedExercises();
     return _erCache!;
   }
 
@@ -248,7 +251,7 @@ class MockApiService {
     }
     final m = await _readErData();
     final list = (m['workout_plans'] as List<dynamic>);
-    list.add({
+    final planJson = {
       'id': plan.id,
       'trainerId': plan.trainerId,
       'name': plan.name,
@@ -262,7 +265,14 @@ class MockApiService {
                 'reps': w.reps,
               })
           .toList(),
-    });
+    };
+    if (plan.durationMinutes != null) planJson['durationMinutes'] = plan.durationMinutes??"";
+    if (plan.kcal != null) planJson['kcal'] = plan.kcal??"";
+    if (plan.exercisesCount != null) planJson['exercisesCount'] = plan.exercisesCount??"";
+    if (plan.tags != null && plan.tags!.isNotEmpty) planJson['tags'] = plan.tags??"";
+    if (plan.equipment != null) planJson['equipment'] = plan.equipment??"";
+    if (plan.imageUrl != null) planJson['imageUrl'] = plan.imageUrl??"";
+    list.add(planJson);
   }
 
   Future<void> addNutritionPlan(NutritionPlanModel plan) async {
@@ -326,6 +336,132 @@ class MockApiService {
         if (description != null) map['description'] = description;
         if (dailyCaloriesTarget != null) map['dailyCaloriesTarget'] = dailyCaloriesTarget;
         break;
+      }
+    }
+  }
+
+  // ===== Exercise Management (Trainer only) =====
+  Future<List<ExerciseModel>> fetchExercises() async {
+    final m = await _readErData();
+    if (!m.containsKey('exercises')) {
+      m['exercises'] = <dynamic>[];
+    }
+    final list = (m['exercises'] as List<dynamic>);
+    return list.map((e) => ExerciseModel.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<void> addExercise(ExerciseModel exercise) async {
+    if (!MockAuthService.instance.isTrainer && !MockAuthService.instance.isAdmin) {
+      throw Exception('Only trainers/admins can create exercises');
+    }
+    final m = await _readErData();
+    if (!m.containsKey('exercises')) {
+      m['exercises'] = <dynamic>[];
+    }
+    final list = (m['exercises'] as List<dynamic>);
+    // Check for duplicates by id
+    if (list.any((e) => (e as Map<String, dynamic>)['id'] == exercise.id)) {
+      throw Exception('Exercise with this ID already exists');
+    }
+    list.add(exercise.toJson());
+    // Also save to SharedPreferences for persistence
+    await _saveExerciseExtra(exercise.toJson());
+  }
+
+  Future<void> _saveExerciseExtra(Map<String, dynamic> exerciseJson) async {
+    final prefs = await SharedPreferences.getInstance();
+    final current = await _loadSavedExercises();
+    // prevent duplicates by id
+    if (current.any((e) => e['id'] == exerciseJson['id'])) return;
+    current.add(exerciseJson);
+    await prefs.setString('extra_exercises', jsonEncode(current));
+  }
+
+  Future<List<Map<String, dynamic>>> _loadSavedExercises() async {
+    final prefs = await SharedPreferences.getInstance();
+    final s = prefs.getString('extra_exercises');
+    if (s == null || s.isEmpty) return [];
+    try {
+      final List<dynamic> arr = jsonDecode(s) as List<dynamic>;
+      return arr.cast<Map<String, dynamic>>();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<void> updateExercise(ExerciseModel exercise) async {
+    if (!MockAuthService.instance.isTrainer && !MockAuthService.instance.isAdmin) {
+      throw Exception('Only trainers/admins can update exercises');
+    }
+    final m = await _readErData();
+    if (!m.containsKey('exercises')) {
+      m['exercises'] = <dynamic>[];
+    }
+    final list = (m['exercises'] as List<dynamic>);
+    for (final item in list) {
+      final map = item as Map<String, dynamic>;
+      if (map['id'] == exercise.id) {
+        map['title'] = exercise.title;
+        map['difficulty'] = exercise.difficulty;
+        map['sets'] = exercise.sets;
+        map['reps'] = exercise.reps;
+        map['restSeconds'] = exercise.restSeconds;
+        map['targetMuscles'] = exercise.targetMuscles;
+        map['videoUrl'] = exercise.videoUrl;
+        if (exercise.instructions != null) {
+          map['instructions'] = exercise.instructions;
+        } else {
+          map.remove('instructions');
+        }
+        break;
+      }
+    }
+    // Update in saved exercises too
+    await _updateExerciseExtra(exercise.toJson());
+  }
+
+  Future<void> _updateExerciseExtra(Map<String, dynamic> exerciseJson) async {
+    final prefs = await SharedPreferences.getInstance();
+    final current = await _loadSavedExercises();
+    final index = current.indexWhere((e) => e['id'] == exerciseJson['id']);
+    if (index != -1) {
+      current[index] = exerciseJson;
+      await prefs.setString('extra_exercises', jsonEncode(current));
+    }
+  }
+
+  Future<void> deleteExercise(String id) async {
+    if (!MockAuthService.instance.isTrainer && !MockAuthService.instance.isAdmin) {
+      throw Exception('Only trainers/admins can delete exercises');
+    }
+    final m = await _readErData();
+    if (!m.containsKey('exercises')) {
+      m['exercises'] = <dynamic>[];
+    }
+    final list = (m['exercises'] as List<dynamic>);
+    list.removeWhere((e) => (e as Map<String, dynamic>)['id'] == id);
+    // Also remove from saved exercises
+    final current = await _loadSavedExercises();
+    current.removeWhere((e) => e['id'] == id);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('extra_exercises', jsonEncode(current));
+  }
+
+  // Merge saved exercises with ER data on load
+  Future<void> _mergeSavedExercises() async {
+    if (_erCache == null) return;
+    if (!_erCache!.containsKey('exercises')) {
+      _erCache!['exercises'] = <dynamic>[];
+    }
+    final saved = await _loadSavedExercises();
+    if (saved.isNotEmpty) {
+      final list = (_erCache!['exercises'] as List<dynamic>);
+      final existingIds = list.map((e) => (e as Map<String, dynamic>)['id'] as String).toSet();
+      for (final ex in saved) {
+        if (!existingIds.contains(ex['id'] as String)) {
+          list.add(ex);
+          existingIds.add(ex['id'] as String);
+        }
       }
     }
   }

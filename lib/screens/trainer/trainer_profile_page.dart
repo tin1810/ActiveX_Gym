@@ -32,22 +32,22 @@ class _TrainerProfilePageState extends State<TrainerProfilePage> {
         foregroundColor: Colors.black,
         elevation: 0,
         centerTitle: true,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: Stack(
-              alignment: Alignment.topRight,
-              children: [
-                IconButton(onPressed: () {}, icon: const Icon(Icons.notifications_none)),
-                Positioned(
-                  right: 8,
-                  top: 10,
-                  child: Container(width: 8, height: 8, decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle)),
-                )
-              ],
-            ),
-          ),
-        ],
+        // actions: [
+        //   Padding(
+        //     padding: const EdgeInsets.only(right: 12),
+        //     child: Stack(
+        //       alignment: Alignment.topRight,
+        //       children: [
+        //         IconButton(onPressed: () {}, icon: const Icon(Icons.notifications_none)),
+        //         Positioned(
+        //           right: 8,
+        //           top: 10,
+        //           child: Container(width: 8, height: 8, decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle)),
+        //         )
+        //       ],
+        //     ),
+        //   ),
+        // ],
       ),
       backgroundColor: const Color(0xFFF7F7F7),
       body: FutureBuilder<TrainerProfileModel>(

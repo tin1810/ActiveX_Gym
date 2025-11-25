@@ -7,7 +7,7 @@ class ExerciseModel {
     required this.reps,
     required this.restSeconds,
     required this.targetMuscles,
-    required this.imageUrl,
+    required this.videoUrl,
     this.instructions,
   });
 
@@ -18,7 +18,7 @@ class ExerciseModel {
   final String reps; // e.g. "10-15"
   final int restSeconds; // 60
   final List<String> targetMuscles; // ["Chest", "Triceps"]
-  final String imageUrl;
+  final String videoUrl;
   final List<String>? instructions;
 
   factory ExerciseModel.fromJson(Map<String, dynamic> json) => ExerciseModel(
@@ -29,7 +29,7 @@ class ExerciseModel {
         reps: json['reps'] as String,
         restSeconds: (json['restSeconds'] as num).toInt(),
         targetMuscles: (json['targetMuscles'] as List<dynamic>).cast<String>(),
-        imageUrl: json['imageUrl'] as String,
+        videoUrl: json['videoUrl'] as String? ?? json['imageUrl'] as String? ?? '', // Support both for backward compatibility
         instructions: (json['instructions'] as List<dynamic>?)?.cast<String>(),
       );
 
@@ -41,7 +41,7 @@ class ExerciseModel {
         'reps': reps,
         'restSeconds': restSeconds,
         'targetMuscles': targetMuscles,
-        'imageUrl': imageUrl,
+        'videoUrl': videoUrl,
         if (instructions != null) 'instructions': instructions,
       };
 }

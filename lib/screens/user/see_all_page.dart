@@ -1,74 +1,113 @@
 import 'package:flutter/material.dart';
-import 'workout_detail_page.dart';
+import '../../models/exercise.dart';
+import '../../services/mock_api.dart';
+import '../../utils/app_text_style.dart';
+import 'exercise_detail_page.dart';
 
-class SeeAllPage extends StatelessWidget {
+class SeeAllPage extends StatefulWidget {
   const SeeAllPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final List<_ExerciseItem> items = [
-      _ExerciseItem('Dumbbell Workout', Icons.fitness_center, const Color(0xFF4A90E2), '12 Workout', '120 min'),
-      _ExerciseItem('Free hand exercises', Icons.accessibility_new, const Color(0xFF34C759), '15 Workout', '90 min'),
-      _ExerciseItem('Yoga', Icons.self_improvement, const Color(0xFF8E44FF), '18 Workout', '100 min'),
-      _ExerciseItem('Pilates', Icons.self_improvement, const Color(0xFF9B59B6), '10 Workout', '80 min'),
-      _ExerciseItem('Cardio Burn', Icons.directions_run, const Color(0xFFE67E22), '14 Workout', '60 min'),
-      _ExerciseItem('Core Strength', Icons.sports_gymnastics, const Color(0xFF16A085), '16 Workout', '75 min'),
-    ];
+  State<SeeAllPage> createState() => _SeeAllPageState();
+}
 
+class _SeeAllPageState extends State<SeeAllPage> {
+  final api = const MockApiService();
+  late Future<List<ExerciseModel>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = api.fetchExercises();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0,
-        title: const Text('Popular Exercises'),
+        title: const Text('All Exercises'),
         centerTitle: true,
       ),
       backgroundColor: Colors.white,
-      body: GridView.builder(
-        padding: const EdgeInsets.all(16),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          childAspectRatio: 0.95,
-        ),
-        itemCount: items.length,
-        itemBuilder: (context, index) {
-          final item = items[index];
-          return _ExerciseCard(item: item);
+      body: FutureBuilder<List<ExerciseModel>>(
+        future: _future,
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final exercises = snapshot.data!;
+          if (exercises.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.fitness_center, size: 64, color: Colors.grey[400]),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No exercises available',
+                    style: AppTextStyle.mediumText(size: 16, color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            );
+          }
+          return GridView.builder(
+            padding: const EdgeInsets.all(16),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 0.85,
+            ),
+            itemCount: exercises.length,
+            itemBuilder: (context, index) {
+              final exercise = exercises[index];
+              return _ExerciseCard(exercise: exercise);
+            },
+          );
         },
       ),
     );
   }
 }
 
-class _ExerciseItem {
-  _ExerciseItem(this.title, this.icon, this.iconBg, this.workouts, this.duration);
-  final String title;
-  final IconData icon;
-  final Color iconBg;
-  final String workouts;
-  final String duration;
-}
-
 class _ExerciseCard extends StatelessWidget {
-  const _ExerciseCard({required this.item});
-  final _ExerciseItem item;
+  const _ExerciseCard({required this.exercise});
+  final ExerciseModel exercise;
+
+  Color _getDifficultyColor(String difficulty) {
+    switch (difficulty.toLowerCase()) {
+      case 'beginner':
+        return Colors.green;
+      case 'intermediate':
+        return Colors.orange;
+      case 'advanced':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       onTap: () {
-        final int durationMinutes = int.tryParse(item.duration.split(' ').first) ?? 60;
-        final int numExercises = int.tryParse(item.workouts.split(' ').first) ?? 8;
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (_) => WorkoutDetailPage(
-              title: item.title,
-              level: 'Beginner',
-              durationMinutes: durationMinutes,
-              kcal: 150,
-              numExercises: numExercises,
+            builder: (_) => ExerciseDetailPage(
+              exerciseName: exercise.title,
+              level: exercise.difficulty,
+              sets: exercise.sets,
+              reps: exercise.reps,
+              restTime: '${exercise.restSeconds}s',
+              targetMuscles: exercise.targetMuscles,
+              equipment: 'None',
+              demoUrl: exercise.videoUrl.isNotEmpty 
+                  ? exercise.videoUrl 
+                  : 'https://www.youtube.com/watch?v=IODxDxX7oi4',
             ),
           ),
         );
@@ -88,41 +127,64 @@ class _ExerciseCard extends StatelessWidget {
           border: Border.all(color: Colors.grey.shade300),
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              width: 56,
-              height: 56,
+              width: double.infinity,
+              height: 100,
               decoration: BoxDecoration(
-                color: item.iconBg,
-                borderRadius: BorderRadius.circular(16),
+                color: Colors.grey[200],
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(item.icon, color: Colors.white, size: 28),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              item.title,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.black87,
-                fontSize: 14,
-                height: 1.2,
-                fontWeight: FontWeight.w700,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  const Icon(Icons.play_circle_filled, size: 50, color: Colors.grey),
+                  Positioned(
+                    bottom: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.7),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text(
+                        'Video',
+                        style: TextStyle(color: Colors.white, fontSize: 10),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              item.workouts,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey[600], fontSize: 12, fontWeight: FontWeight.w500),
+              exercise.title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyle.semiBoldText(size: 14, color: Colors.black),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: _getDifficultyColor(exercise.difficulty).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                exercise.difficulty,
+                style: TextStyle(
+                  color: _getDifficultyColor(exercise.difficulty),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const Spacer(),
             Text(
-              item.duration,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey[600], fontSize: 12, fontWeight: FontWeight.w500),
+              '${exercise.sets} sets • ${exercise.reps} reps',
+              style: AppTextStyle.regularText(size: 11, color: Colors.grey[600]),
             ),
           ],
         ),

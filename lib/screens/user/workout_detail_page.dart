@@ -276,7 +276,7 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
               reps: '10-15',
               restSeconds: 60,
               targetMuscles: const ['Chest', 'Shoulders', 'Triceps'],
-              imageUrl: _exerciseImageFor('Push-ups'),
+             videoUrl: _exerciseImageFor('Push-ups'),
             ),
             ExerciseModel(
               id: 'squats',
@@ -286,7 +286,7 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
               reps: '12-20',
               restSeconds: 45,
               targetMuscles: const ['Quadriceps', 'Glutes', 'Hamstrings'],
-              imageUrl: _exerciseImageFor('Squats'),
+              videoUrl: _exerciseImageFor('Squats'),
             ),
           ],
         );
