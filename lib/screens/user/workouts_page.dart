@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../services/mock_api.dart';
@@ -179,19 +180,156 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
                                         borderRadius: BorderRadius.circular(16),
                                         child: Container(
                                           margin: const EdgeInsets.only(bottom: 12, left: 16, right: 16),
-                                          padding: const EdgeInsets.all(14),
-                                          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey.shade300)),
-                                          child: Row(children: [
-                                            Container(width: 40, height: 40, decoration: BoxDecoration(color: const Color(0xFFEAF7D5), borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.rule_folder, color: Color(0xFF7ED957))),
-                                            const SizedBox(width: 10),
-                                            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                              Text(p.name, style: AppTextStyle.semiBoldText(size: 15, color: Colors.black)),
-                                              const SizedBox(height: 4),
-                                              Text(p.description, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyle.regularText(size: 12, color: Colors.grey[700])),
-                                            ])),
-                                            const SizedBox(width: 8),
-                                            Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(12)), child: Text(p.difficulty, style: AppTextStyle.mediumText(size: 11, color: Colors.grey[800]!))),
-                                          ]),
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.circular(16),
+                                            border: Border.all(color: Colors.grey.shade300),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withValues(alpha: 0.03),
+                                                blurRadius: 10,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ],
+                                          ),
+                                          child: Row(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              // Image thumbnail
+                                              ClipRRect(
+                                                borderRadius: BorderRadius.circular(12),
+                                                child: SizedBox(
+                                                  width: 72,
+                                                  height: 72,
+                                                  child: _buildWorkoutPlanImage(p),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 12),
+                                              // Content
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    // Title and Difficulty badge
+                                                    Row(
+                                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                                      children: [
+                                                        Expanded(
+                                                          child: Text(
+                                                            p.name,
+                                                            style: const TextStyle(
+                                                              fontSize: 18,
+                                                              fontWeight: FontWeight.w700,
+                                                              color: Colors.black,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        const SizedBox(width: 8),
+                                                        Container(
+                                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                          decoration: BoxDecoration(
+                                                            color: _getDifficultyColor(p.difficulty).withValues(alpha: 0.15),
+                                                            borderRadius: BorderRadius.circular(12),
+                                                          ),
+                                                          child: Text(
+                                                            p.difficulty,
+                                                            style: TextStyle(
+                                                              fontSize: 11,
+                                                              fontWeight: FontWeight.w600,
+                                                              color: _getDifficultyColor(p.difficulty),
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    const SizedBox(height: 8),
+                                                    // Metrics row
+                                                    Row(
+                                                      children: [
+                                                        if (p.durationMinutes != null) ...[
+                                                          const Icon(Icons.access_time, size: 14, color: Colors.grey),
+                                                          const SizedBox(width: 4),
+                                                          Text(
+                                                            '${p.durationMinutes}',
+                                                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black),
+                                                          ),
+                                                          Text(
+                                                            ' min',
+                                                            style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                                                          ),
+                                                          const SizedBox(width: 12),
+                                                        ],
+                                                        if (p.kcal != null) ...[
+                                                          const Icon(Icons.local_fire_department, size: 14, color: Colors.grey),
+                                                          const SizedBox(width: 4),
+                                                          Text(
+                                                            '${p.kcal}',
+                                                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black),
+                                                          ),
+                                                          Text(
+                                                            ' kcal',
+                                                            style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                                                          ),
+                                                          const SizedBox(width: 12),
+                                                        ],
+                                                        if (p.exercisesCount != null) ...[
+                                                          const Icon(Icons.my_location, size: 14, color: Colors.grey),
+                                                          const SizedBox(width: 4),
+                                                          Text(
+                                                            '${p.exercisesCount}',
+                                                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black),
+                                                          ),
+                                                          Text(
+                                                            ' exercises',
+                                                            style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                                                          ),
+                                                        ],
+                                                      ],
+                                                    ),
+                                                    if (p.tags != null && p.tags!.isNotEmpty) ...[
+                                                      const SizedBox(height: 8),
+                                                      Wrap(
+                                                        spacing: 6,
+                                                        runSpacing: 6,
+                                                        children: p.tags!.take(2).map((tag) {
+                                                          return Container(
+                                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                            decoration: BoxDecoration(
+                                                              color: const Color(0xFFE3F2FD),
+                                                              borderRadius: BorderRadius.circular(12),
+                                                              border: Border.all(color: const Color(0xFF2196F3).withValues(alpha: 0.3)),
+                                                            ),
+                                                            child: Text(
+                                                              tag,
+                                                              style: const TextStyle(
+                                                                fontSize: 11,
+                                                                fontWeight: FontWeight.w600,
+                                                                color: Color(0xFF1976D2),
+                                                              ),
+                                                            ),
+                                                          );
+                                                        }).toList(),
+                                                      ),
+                                                    ],
+                                                    if (p.equipment != null) ...[
+                                                      const SizedBox(height: 8),
+                                                      Row(
+                                                        children: [
+                                                          Icon(Icons.fitness_center, size: 14, color: Colors.grey[600]),
+                                                          const SizedBox(width: 6),
+                                                          Text(
+                                                            p.equipment!,
+                                                            style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ],
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                         ),
                                       )),
                                   Padding(
@@ -645,6 +783,82 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
         ),
       ],
     );
+  }
+
+  Widget _buildWorkoutPlanImage(WorkoutPlanModel plan) {
+    // Check if plan has a custom image (base64 data URI)
+    if (plan.imageUrl != null && plan.imageUrl!.isNotEmpty) {
+      // Check if it's a base64 data URI
+      if (plan.imageUrl!.startsWith('data:image')) {
+        try {
+          // Extract base64 string from data URI
+          final base64String = plan.imageUrl!.split(',')[1];
+          final imageBytes = base64Decode(base64String);
+          return Image.memory(
+            imageBytes,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => _buildPlaceholderWorkoutPlanImage(plan.name),
+          );
+        } catch (e) {
+          // If base64 decoding fails, fall back to placeholder
+          return _buildPlaceholderWorkoutPlanImage(plan.name);
+        }
+      } else {
+        // It's a regular URL
+        return CachedNetworkImage(
+          imageUrl: plan.imageUrl!,
+          fit: BoxFit.cover,
+          placeholder: (context, url) => Container(
+            color: Colors.grey[200],
+            child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+          ),
+          errorWidget: (context, url, error) => _buildPlaceholderWorkoutPlanImage(plan.name),
+        );
+      }
+    }
+    return _buildPlaceholderWorkoutPlanImage(plan.name);
+  }
+
+  Widget _buildPlaceholderWorkoutPlanImage(String planName) {
+    // Create a gradient background based on plan name hash
+    final hash = planName.hashCode;
+    final colors = [
+      [const Color(0xFF64B5F6), const Color(0xFF42A5F5)],
+      [const Color(0xFF81C784), const Color(0xFF66BB6A)],
+      [const Color(0xFFFFB74D), const Color(0xFFFFA726)],
+      [const Color(0xFFBA68C8), const Color(0xFFAB47BC)],
+      [const Color(0xFFEF5350), const Color(0xFFE53935)],
+    ];
+    final colorPair = colors[hash.abs() % colors.length];
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: colorPair,
+        ),
+      ),
+      child: Center(
+        child: Icon(
+          Icons.fitness_center,
+          color: Colors.white.withValues(alpha: 0.8),
+          size: 32,
+        ),
+      ),
+    );
+  }
+
+  Color _getDifficultyColor(String difficulty) {
+    switch (difficulty.toLowerCase()) {
+      case 'beginner':
+        return const Color(0xFF4CAF50);
+      case 'intermediate':
+        return const Color(0xFFFF9800);
+      case 'advanced':
+        return const Color(0xFFF44336);
+      default:
+        return Colors.grey;
+    }
   }
 }
 

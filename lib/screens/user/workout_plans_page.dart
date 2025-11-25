@@ -1,4 +1,4 @@
-import 'package:activex_gym_app/widgets/trainer_fab.dart';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../services/mock_api.dart';
@@ -6,6 +6,8 @@ import '../../models/er_models.dart';
 import '../../utils/app_text_style.dart';
 import '../../services/auth.dart';
 import '../trainer/workout_plan_form_page.dart';
+import '../trainer/workout_plan_detail_page.dart';
+import 'workout_plan_detail_page.dart';
 
 class WorkoutPlansPage extends StatefulWidget {
   const WorkoutPlansPage({super.key});
@@ -22,42 +24,13 @@ class _WorkoutPlansPageState extends State<WorkoutPlansPage> {
     setState(() {});
   }
 
-  Future<void> _editDialog(WorkoutPlanModel p) async {
-    final nameCtrl = TextEditingController(text: p.name);
-    final descCtrl = TextEditingController(text: p.description);
-    String difficulty = p.difficulty;
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Edit Plan'),
-          content: SingleChildScrollView(
-            child: Column(
-              children: [
-                TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Name')),
-                TextField(controller: descCtrl, decoration: const InputDecoration(labelText: 'Description')),
-                DropdownButtonFormField<String>(
-                  value: difficulty,
-                  items: const [
-                    DropdownMenuItem(value: 'beginner', child: Text('Beginner')),
-                    DropdownMenuItem(value: 'intermediate', child: Text('Intermediate')),
-                    DropdownMenuItem(value: 'advanced', child: Text('Advanced')),
-                  ],
-                  onChanged: (v) => difficulty = v ?? p.difficulty,
-                  decoration: const InputDecoration(labelText: 'Difficulty'),
-                )
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-            ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Save')),
-          ],
-        );
-      },
+  Future<void> _editWorkoutPlan(WorkoutPlanModel plan) async {
+    final updated = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => WorkoutPlanFormPage(workoutPlan: plan),
+      ),
     );
-    if (saved == true) {
-      await api.updateWorkoutPlan(id: p.id, name: nameCtrl.text, description: descCtrl.text, difficulty: difficulty);
+    if (updated == true) {
       setState(() {});
     }
   }
@@ -126,9 +99,22 @@ class _WorkoutPlansPageState extends State<WorkoutPlansPage> {
           const SizedBox(height: 12),
               ...List.generate(plans.length, (i) {
                 final p = plans[i];
-              final heroImage = _planHeroImage(p.name);
                 return InkWell(
-                onTap: () {},
+                onTap: () {
+                  if (MockAuthService.instance.isTrainer || MockAuthService.instance.isAdmin) {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => TrainerWorkoutPlanDetailPage(plan: p),
+                      ),
+                    );
+                  } else {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => WorkoutPlanDetailPage(plan: p),
+                      ),
+                    );
+                  }
+                },
                 borderRadius: BorderRadius.circular(16),
                 child: Container(
                   padding: const EdgeInsets.all(12),
@@ -147,12 +133,7 @@ class _WorkoutPlansPageState extends State<WorkoutPlansPage> {
                         child: SizedBox(
                           width: 72,
                           height: 72,
-                          child: CachedNetworkImage(
-                            imageUrl: heroImage,
-                            fit: BoxFit.cover,
-                            placeholder: (c, _) => Container(color: Colors.grey[200]),
-                            errorWidget: (c, _, __) => Container(color: Colors.grey[200], child: const Icon(Icons.image_not_supported)),
-                          ),
+                          child: _buildWorkoutImage(p),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -168,7 +149,7 @@ class _WorkoutPlansPageState extends State<WorkoutPlansPage> {
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                   decoration: BoxDecoration(
-                                    color: Colors.green.withOpacity(0.12),
+                                    color: Colors.green.withValues(alpha: 0.12),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Text(
@@ -180,7 +161,7 @@ class _WorkoutPlansPageState extends State<WorkoutPlansPage> {
                                 PopupMenuButton<String>(
                                   onSelected: (value) {
                                     if (value == 'edit') {
-                                      _editDialog(p);
+                                      _editWorkoutPlan(p);
                                     } else if (value == 'delete') {
                                       _delete(p.id);
                                     }
@@ -258,6 +239,51 @@ class _WorkoutPlansPageState extends State<WorkoutPlansPage> {
       ),
     );
   }
+}
+
+Widget _buildWorkoutImage(WorkoutPlanModel plan) {
+  // Check if plan has a custom image (base64 data URI)
+  if (plan.imageUrl != null && plan.imageUrl!.isNotEmpty) {
+    // Check if it's a base64 data URI
+    if (plan.imageUrl!.startsWith('data:image')) {
+      try {
+        // Extract base64 string from data URI
+        final base64String = plan.imageUrl!.split(',')[1];
+        final imageBytes = base64Decode(base64String);
+        return Image.memory(
+          imageBytes,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => _buildPlaceholderImage(plan.name),
+        );
+      } catch (e) {
+        // If base64 decoding fails, fall back to placeholder
+        return _buildPlaceholderImage(plan.name);
+      }
+    } else {
+      // It's a regular URL
+      return CachedNetworkImage(
+        imageUrl: plan.imageUrl!,
+        fit: BoxFit.cover,
+        placeholder: (c, _) => Container(color: Colors.grey[200], child: const Center(child: CircularProgressIndicator(strokeWidth: 2))),
+        errorWidget: (c, _, __) => _buildPlaceholderImage(plan.name),
+      );
+    }
+  }
+  // No image, use placeholder based on name
+  return _buildPlaceholderImage(plan.name);
+}
+
+Widget _buildPlaceholderImage(String name) {
+  final heroImage = _planHeroImage(name);
+  return CachedNetworkImage(
+    imageUrl: heroImage,
+    fit: BoxFit.cover,
+    placeholder: (c, _) => Container(color: Colors.grey[200]),
+    errorWidget: (c, _, __) => Container(
+      color: Colors.grey[200],
+      child: const Icon(Icons.image_not_supported, color: Colors.grey),
+    ),
+  );
 }
 
 String _planHeroImage(String name) {

@@ -3,11 +3,14 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../models/er_models.dart';
+import '../../models/exercise.dart';
 import '../../services/mock_api.dart';
 import '../../services/auth.dart';
 
 class WorkoutPlanFormPage extends StatefulWidget {
-  const WorkoutPlanFormPage({super.key});
+  const WorkoutPlanFormPage({super.key, this.workoutPlan});
+
+  final WorkoutPlanModel? workoutPlan; // If provided, we're editing
 
   @override
   State<WorkoutPlanFormPage> createState() => _WorkoutPlanFormPageState();
@@ -30,17 +33,65 @@ class _WorkoutPlanFormPageState extends State<WorkoutPlanFormPage> {
   XFile? _selectedImage;
   String? _imageBase64;
 
-  final List<_DayPlan> _days = [
-    _DayPlan(dayName: 'Monday', exercises: [
-      _ExerciseRow(showHeader: false),
-    ]),
-  ];
+  List<_DayPlan> _days = [];
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.workoutPlan != null) {
+      // Load existing workout plan data for editing
+      _loadWorkoutPlanData(widget.workoutPlan!);
+    } else {
+      // Create mode - start with one day
+      _days = [
+        _DayPlan(dayName: 'Monday', exercises: [
+          _ExerciseRow(showHeader: false, key: GlobalKey<_ExerciseRowState>()),
+        ]),
+      ];
+    }
+  }
+
+  void _loadWorkoutPlanData(WorkoutPlanModel plan) {
+    _nameCtrl.text = plan.name;
+    _descCtrl.text = plan.description;
+    _difficulty = plan.difficulty;
+    if (plan.durationMinutes != null) {
+      _durationMinutesCtrl.text = plan.durationMinutes.toString();
+    }
+    if (plan.kcal != null) {
+      _kcalCtrl.text = plan.kcal.toString();
+    }
+    if (plan.equipment != null) {
+      _equipmentCtrl.text = plan.equipment!;
+    }
+    if (plan.tags != null) {
+      _tags.addAll(plan.tags!);
+    }
+    if (plan.imageUrl != null && plan.imageUrl!.startsWith('data:image')) {
+      // Load existing base64 image - extract base64 part
+      try {
+        final parts = plan.imageUrl!.split(',');
+        if (parts.length > 1) {
+          _imageBase64 = parts[1];
+        }
+      } catch (e) {
+        // If parsing fails, leave it null
+      }
+    }
+    // TODO: Load workout schedule days if needed
+    // For now, start with empty days
+    _days = [
+      _DayPlan(dayName: 'Monday', exercises: [
+        _ExerciseRow(showHeader: false, key: GlobalKey<_ExerciseRowState>()),
+      ]),
+    ];
+  }
 
   void _addDay() {
     const names = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     final idx = _days.length % names.length;
     setState(() {
-      _days.add(_DayPlan(dayName: names[idx], exercises: [_ExerciseRow()]));
+      _days.add(_DayPlan(dayName: names[idx], exercises: [_ExerciseRow(key: GlobalKey<_ExerciseRowState>())]));
     });
   }
 
@@ -107,6 +158,31 @@ class _WorkoutPlanFormPageState extends State<WorkoutPlanFormPage> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     final trainer = MockAuthService.instance.currentUser;
+    
+    // Build workouts list from days and exercises
+    final List<PlanWorkoutModel> workouts = [];
+    for (int dayIndex = 0; dayIndex < _days.length; dayIndex++) {
+      final day = _days[dayIndex];
+      for (final exerciseRow in day.exercises) {
+        final key = exerciseRow.key;
+        if (key != null && key is GlobalKey<_ExerciseRowState>) {
+          final state = key.currentState;
+          if (state != null && state.selectedExercise != null) {
+            final sets = int.tryParse(state.sets) ?? 3;
+            final reps = state.reps.trim();
+            if (reps.isNotEmpty) {
+              workouts.add(PlanWorkoutModel(
+                workoutId: state.selectedExercise!.id,
+                dayOfWeek: dayIndex,
+                sets: sets,
+                reps: reps,
+              ));
+            }
+          }
+        }
+      }
+    }
+    
     // Calculate exercises count from all days
     int totalExercises = 0;
     for (final day in _days) {
@@ -114,29 +190,46 @@ class _WorkoutPlanFormPageState extends State<WorkoutPlanFormPage> {
     }
 
     final plan = WorkoutPlanModel(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: widget.workoutPlan?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
       trainerId: trainer.id,
       name: _nameCtrl.text.trim(),
       description: _descCtrl.text.trim(),
       difficulty: _difficulty,
-      workouts: const [],
+      workouts: workouts,
       durationMinutes: int.tryParse(_durationMinutesCtrl.text),
       kcal: int.tryParse(_kcalCtrl.text),
       exercisesCount: totalExercises > 0 ? totalExercises : null,
       tags: _tags.isNotEmpty ? _tags : null,
       equipment: _equipmentCtrl.text.trim().isEmpty ? null : _equipmentCtrl.text.trim(),
-      imageUrl: _imageBase64 != null ? 'data:image/jpeg;base64,$_imageBase64' : null,
+      imageUrl: _imageBase64 != null 
+          ? 'data:image/jpeg;base64,$_imageBase64' 
+          : widget.workoutPlan?.imageUrl, // Keep existing image if not changed
     );
-    await const MockApiService().addWorkoutPlan(plan);
-    if (!mounted) return;
-    Navigator.of(context).pop(true);
+
+    try {
+      if (widget.workoutPlan != null) {
+        // Update existing plan
+        await const MockApiService().updateWorkoutPlanFull(plan);
+      } else {
+        // Create new plan
+        await const MockApiService().addWorkoutPlan(plan);
+      }
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Create Workout Plan'),
+        title: Text(widget.workoutPlan == null ? 'Create Workout Plan' : 'Edit Workout Plan'),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0,
@@ -340,17 +433,42 @@ class _WorkoutPlanFormPageState extends State<WorkoutPlanFormPage> {
                                 ),
                               ],
                             )
-                          : Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.add_photo_alternate, size: 48, color: Colors.grey[400]),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Tap to select image from gallery',
-                                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                          : _imageBase64 != null && widget.workoutPlan != null
+                              ? Stack(
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Image.memory(
+                                        base64Decode(_imageBase64!),
+                                        width: double.infinity,
+                                        height: 150,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                    Positioned(
+                                      top: 8,
+                                      right: 8,
+                                      child: IconButton(
+                                        onPressed: _removeImage,
+                                        icon: const Icon(Icons.close, color: Colors.white),
+                                        style: IconButton.styleFrom(
+                                          backgroundColor: Colors.black.withOpacity(0.6),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.add_photo_alternate, size: 48, color: Colors.grey[400]),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Tap to select image from gallery',
+                                      style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
                     ),
                   ),
                 ],
@@ -377,7 +495,7 @@ class _WorkoutPlanFormPageState extends State<WorkoutPlanFormPage> {
             const SizedBox(height: 8),
             ..._days.map((d) => _DayCard(
                   day: d,
-                  onAddExercise: () => setState(() => d.exercises.add(_ExerciseRow(showHeader: false))),
+                  onAddExercise: () => setState(() => d.exercises.add(_ExerciseRow(showHeader: false, key: GlobalKey<_ExerciseRowState>()))),
                   onRemove: () => setState(() => _days.remove(d)),
                   onRemoveExercise: (idx) => setState(() => d.exercises.removeAt(idx)),
                 )),
@@ -393,9 +511,9 @@ class _WorkoutPlanFormPageState extends State<WorkoutPlanFormPage> {
             child: ElevatedButton.icon(
               onPressed: _submit,
               icon: const Icon(Icons.lock),
-              label: const Padding(
-                padding: EdgeInsets.symmetric(vertical: 12),
-                child: Text('Save Workout Plan'),
+              label: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Text(widget.workoutPlan == null ? 'Create Workout Plan' : 'Update Workout Plan'),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF7ED957),
@@ -499,13 +617,37 @@ class _ExerciseRow extends StatefulWidget {
 }
 
 class _ExerciseRowState extends State<_ExerciseRow> {
-  final nameCtrl = TextEditingController();
   final setsCtrl = TextEditingController(text: '3');
   final repsCtrl = TextEditingController(text: '10');
   final restCtrl = TextEditingController(text: '60');
+  ExerciseModel? _selectedExercise;
+  late Future<List<ExerciseModel>> _exercisesFuture;
+  
+  // Public getters to access exercise data
+  ExerciseModel? get selectedExercise => _selectedExercise;
+  String get sets => setsCtrl.text;
+  String get reps => repsCtrl.text;
+
+  @override
+  void initState() {
+    super.initState();
+    _exercisesFuture = const MockApiService().fetchExercises();
+  }
+
+  void _onExerciseSelected(ExerciseModel? exercise) {
+    if (exercise != null) {
+      setState(() {
+        _selectedExercise = exercise;
+        // Auto-fill sets, reps, and rest from selected exercise
+        setsCtrl.text = exercise.sets.toString();
+        repsCtrl.text = exercise.reps;
+        restCtrl.text = exercise.restSeconds.toString();
+      });
+    }
+  }
+
   @override
   void dispose() {
-    nameCtrl.dispose();
     setsCtrl.dispose();
     repsCtrl.dispose();
     restCtrl.dispose();
@@ -532,9 +674,55 @@ class _ExerciseRowState extends State<_ExerciseRow> {
             ],
           ),
         const SizedBox(height: 8),
-        TextField(
-          controller: nameCtrl,
-          decoration: const InputDecoration(hintText: 'Exercise name'),
+        FutureBuilder<List<ExerciseModel>>(
+          future: _exercisesFuture,
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return const SizedBox(
+                height: 56,
+                child: Center(child: CircularProgressIndicator()),
+              );
+            }
+            final exercises = snapshot.data!;
+            if (exercises.isEmpty) {
+              return Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange[200]!),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.orange[700], size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'No exercises available. Create exercises first.',
+                        style: TextStyle(color: Colors.orange[700], fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+            return DropdownButtonFormField<ExerciseModel>(
+              value: _selectedExercise,
+              decoration: const InputDecoration(
+                labelText: 'Exercise name *',
+                border: OutlineInputBorder(),
+                hintText: 'Select an exercise',
+              ),
+              items: exercises.map((exercise) {
+                return DropdownMenuItem<ExerciseModel>(
+                  value: exercise,
+                  child: Text(exercise.title),
+                );
+              }).toList(),
+              onChanged: _onExerciseSelected,
+              validator: (value) => value == null ? 'Please select an exercise' : null,
+            );
+          },
         ),
         const SizedBox(height: 8),
         Row(
