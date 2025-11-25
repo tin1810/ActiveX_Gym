@@ -4,6 +4,7 @@ import '../../services/mock_api.dart';
 import '../../models/workout.dart';
 import '../../models/exercise.dart';
 import 'exercise_detail_page.dart';
+import 'workout_player_page.dart';
 
 class WorkoutDetailPage extends StatefulWidget {
   const WorkoutDetailPage({
@@ -34,6 +35,7 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
   int _selectedTab = 0; // 0: Overview, 1: Exercises, 2: Details
   final MockApiService _api = const MockApiService();
   Future<WorkoutModel?>? _futureWorkout;
+  final GlobalKey _tabsKey = GlobalKey();
 
   @override
   void initState() {
@@ -67,7 +69,7 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
               const SizedBox(height: 16),
               _buildActionButtons(context),
               const SizedBox(height: 16),
-              _buildTabs(),
+              _buildTabs(key: _tabsKey),
               const SizedBox(height: 16),
               _buildTabContent(),
             ],
@@ -185,7 +187,11 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
       children: [
         Expanded(
           child: OutlinedButton.icon(
-            onPressed: () {},
+            onPressed: () {
+              setState(() {
+                _selectedTab = 1; // Switch to Exercises tab
+              });
+            },
             icon: const Icon(Icons.visibility_outlined),
             label: const Text('View Exercises'),
             style: OutlinedButton.styleFrom(
@@ -200,7 +206,61 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
         const SizedBox(width: 12),
         Expanded(
           child: ElevatedButton.icon(
-            onPressed: () {},
+            onPressed: () async {
+              final navigator = Navigator.of(context);
+              if (widget.workoutId != null && _futureWorkout != null) {
+                // Wait for workout to load
+                final workout = await _futureWorkout!;
+                if (!mounted) return;
+                if (workout != null) {
+                  navigator.push(
+                    MaterialPageRoute(
+                      builder: (_) => WorkoutPlayerPage(workout: workout),
+                    ),
+                  );
+                }
+              } else {
+                // Use mock workout data
+                final mockWorkout = WorkoutModel(
+                  id: 'mock',
+                  title: widget.title,
+                  level: widget.level,
+                  durationMinutes: widget.durationMinutes,
+                  kcal: widget.kcal,
+                  exercisesCount: widget.numExercises,
+                  tags: [],
+                  equipment: 'None',
+                  imageUrl: widget.headerImageUrl,
+                  exercises: [
+                    ExerciseModel(
+                      id: 'pushups',
+                      title: 'Push-ups',
+                      difficulty: 'Beginner',
+                      sets: 3,
+                      reps: '10-15',
+                      restSeconds: 60,
+                      targetMuscles: const ['Chest', 'Shoulders', 'Triceps'],
+                      videoUrl: '',
+                    ),
+                    ExerciseModel(
+                      id: 'squats',
+                      title: 'Squats',
+                      difficulty: 'Beginner',
+                      sets: 3,
+                      reps: '12-20',
+                      restSeconds: 45,
+                      targetMuscles: const ['Quadriceps', 'Glutes', 'Hamstrings'],
+                      videoUrl: '',
+                    ),
+                  ],
+                );
+                navigator.push(
+                  MaterialPageRoute(
+                    builder: (_) => WorkoutPlayerPage(workout: mockWorkout),
+                  ),
+                );
+              }
+            },
             icon: const Icon(Icons.play_arrow),
             label: const Text('Start Workout'),
             style: ElevatedButton.styleFrom(
@@ -217,8 +277,9 @@ class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
     );
   }
 
-  Widget _buildTabs() {
+  Widget _buildTabs({Key? key}) {
     return Container(
+      key: key,
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
         color: const Color(0xFFF2F2F7),
