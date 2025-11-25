@@ -22,9 +22,27 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: _createDB,
+      onUpgrade: _onUpgrade,
     );
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      // Add calories_burned column if it doesn't exist
+      try {
+        await db.execute('ALTER TABLE progress_logs ADD COLUMN calories_burned INTEGER DEFAULT 0');
+      } catch (e) {
+        // Column might already exist, ignore
+      }
+      // Add unique index if it doesn't exist
+      try {
+        await db.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_progress_logs_user_date ON progress_logs(user_id, date)');
+      } catch (e) {
+        // Index might already exist, ignore
+      }
+    }
   }
 
   Future<void> _createDB(Database db, int version) async {
@@ -150,12 +168,15 @@ class DatabaseHelper {
         user_id TEXT NOT NULL,
         date TEXT NOT NULL,
         weight REAL,
+        calories_burned INTEGER DEFAULT 0,
         body_fat_percentage REAL,
         muscle_mass REAL,
         notes TEXT,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       )
     ''');
+    // Create unique index separately
+    await db.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_progress_logs_user_date ON progress_logs(user_id, date)');
 
     // User Plan Assignments table
     await db.execute('''
@@ -549,21 +570,46 @@ class DatabaseHelper {
       userId: map['user_id'] as String,
       date: map['date'] as String,
       weightKg: (map['weight'] as num?)?.toDouble() ?? 0.0,
-      caloriesBurned: 0, // Default value
+      caloriesBurned: (map['calories_burned'] as num?)?.toInt() ?? 0,
+      notes: map['notes'] as String?,
     )).toList();
   }
 
   Future<int> insertProgressLog(ProgressLogModel log) async {
     final db = await database;
-    return await db.insert('progress_logs', {
-      'id': DateTime.now().millisecondsSinceEpoch.toString(),
+    
+    // Check if a log already exists for this user and date
+    final existing = await db.query(
+      'progress_logs',
+      where: 'user_id = ? AND date = ?',
+      whereArgs: [log.userId, log.date],
+    );
+    
+    final logData = {
       'user_id': log.userId,
       'date': log.date,
       'weight': log.weightKg,
+      'calories_burned': log.caloriesBurned,
       'body_fat_percentage': null,
       'muscle_mass': null,
-      'notes': null,
-    }, conflictAlgorithm: ConflictAlgorithm.replace);
+      'notes': log.notes,
+    };
+    
+    if (existing.isNotEmpty) {
+      // Update existing log
+      final existingId = existing.first['id'] as String;
+      logData['id'] = existingId;
+      return await db.update(
+        'progress_logs',
+        logData,
+        where: 'id = ?',
+        whereArgs: [existingId],
+      );
+    } else {
+      // Insert new log
+      logData['id'] = DateTime.now().millisecondsSinceEpoch.toString();
+      return await db.insert('progress_logs', logData);
+    }
   }
 
   // ========== Favorite Exercises ==========

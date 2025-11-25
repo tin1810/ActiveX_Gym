@@ -108,6 +108,11 @@ class MockApiService {
     return await DatabaseHelper.instance.getProgressLogs(userId);
   }
 
+  Future<void> addProgressLog(ProgressLogModel log) async {
+    await _ensureMigrated();
+    await DatabaseHelper.instance.insertProgressLog(log);
+  }
+
   Future<void> addChallenge(CommunityChallengeModel challenge) async {
     if (!MockAuthService.instance.isTrainer && !MockAuthService.instance.isAdmin) {
       throw Exception('Only trainers/admins can create challenges');

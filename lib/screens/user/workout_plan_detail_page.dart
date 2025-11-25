@@ -18,11 +18,31 @@ class WorkoutPlanDetailPage extends StatefulWidget {
 class _WorkoutPlanDetailPageState extends State<WorkoutPlanDetailPage> {
   final api = const MockApiService();
   Set<String> _favoriteExerciseIds = {};
+  String? _trainerName;
 
   @override
   void initState() {
     super.initState();
     _loadFavorites();
+    _loadTrainerName();
+  }
+
+  Future<void> _loadTrainerName() async {
+    try {
+      final trainer = await DatabaseHelper.instance.getUserById(widget.plan.trainerId);
+      if (trainer != null && mounted) {
+        setState(() {
+          _trainerName = trainer.name;
+        });
+      }
+    } catch (e) {
+      // If trainer not found, use fallback
+      if (mounted) {
+        setState(() {
+          _trainerName = 'Trainer';
+        });
+      }
+    }
   }
 
   Future<void> _loadFavorites() async {
@@ -142,7 +162,10 @@ class _WorkoutPlanDetailPageState extends State<WorkoutPlanDetailPage> {
         Row(children: [
           const Icon(Icons.person, size: 16, color: Colors.grey),
           const SizedBox(width: 6),
-          Text('Trainer: ${MockAuthService.instance.currentUser.name}', style: AppTextStyle.regularText(size: 12, color: Colors.grey[800])),
+          Text(
+            'Trainer: ${_trainerName ?? 'Loading...'}',
+            style: AppTextStyle.regularText(size: 12, color: Colors.grey[800]),
+          ),
         ]),
       ],
     );
