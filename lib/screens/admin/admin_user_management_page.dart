@@ -46,8 +46,114 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
       },
     );
     if (saved == true) {
-      await api.addTrainer(name: nameCtrl.text.trim(), email: emailCtrl.text.trim(), password: passCtrl.text);
-      if (mounted) setState(() {});
+      try {
+        await api.addTrainer(name: nameCtrl.text.trim(), email: emailCtrl.text.trim(), password: passCtrl.text);
+        if (mounted) {
+          setState(() {});
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Trainer account created successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(e.toString().replaceFirst('Exception: ', '')),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _deleteUserDialog(UserModel user) async {
+    final role = user.role == 'trainer' ? 'Trainer' : 'User';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Delete $role Account'),
+          content: Text(
+            'Are you sure you want to delete ${user.name} (${user.email})? This action cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed == true) {
+      try {
+        await api.deleteUser(user.id);
+        if (mounted) {
+          setState(() {});
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('$role account deleted successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete account: ${e.toString().replaceFirst('Exception: ', '')}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _logoutDialog() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Logout'),
+          content: const Text('Are you sure you want to log out from the admin account?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Logout'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      MockAuthService.instance.signOut();
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginPage()),
+        (route) => false,
+      );
     }
   }
 
@@ -64,13 +170,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
         elevation: 0,
         actions: [
           IconButton(
-            onPressed: () {
-              MockAuthService.instance.signOut();
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => const LoginPage()),
-                (route) => false,
-              );
-            },
+            onPressed: _logoutDialog,
             tooltip: 'Logout',
             icon: const Icon(Icons.logout),
           ),
@@ -138,10 +238,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                             ]),
                           ),
                           IconButton(
-                            onPressed: () async {
-                              await api.deleteUser(u.id);
-                              if (mounted) setState(() {});
-                            },
+                            onPressed: () => _deleteUserDialog(u),
                             icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
                           )
                         ],

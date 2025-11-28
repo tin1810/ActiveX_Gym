@@ -76,7 +76,9 @@ class MockApiService {
     await _ensureMigrated();
     // Check for duplicates case-insensitively
     final existing = await DatabaseHelper.instance.getUserByEmail(email.trim());
-    if (existing != null) return;
+    if (existing != null) {
+      throw Exception('Email already exists. Please use a different email address.');
+    }
     
     final trainer = UserModel(
       id: DateTime.now().millisecondsSinceEpoch.toString(),

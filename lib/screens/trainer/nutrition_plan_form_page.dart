@@ -35,18 +35,35 @@ class _NutritionPlanFormPageState extends State<NutritionPlanFormPage> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    final trainer = MockAuthService.instance.currentUser;
-    final plan = NutritionPlanModel(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      trainerId: trainer.id,
-      name: _nameCtrl.text.trim(),
-      description: _goalCtrl.text.trim(),
-      dailyCaloriesTarget: int.tryParse(_kcalCtrl.text.trim()) ?? 1800,
-      meals: const [],
-    );
-    await const MockApiService().addNutritionPlan(plan);
-    if (!mounted) return;
-    Navigator.of(context).pop(true);
+    try {
+      final trainer = MockAuthService.instance.currentUser;
+      final plan = NutritionPlanModel(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        trainerId: trainer.id,
+        name: _nameCtrl.text.trim(),
+        description: _goalCtrl.text.trim(),
+        dailyCaloriesTarget: int.tryParse(_kcalCtrl.text.trim()) ?? 1800,
+        meals: const [],
+      );
+      await const MockApiService().addNutritionPlan(plan);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Nutrition plan created successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _addDay() {

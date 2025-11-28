@@ -210,16 +210,33 @@ class _WorkoutPlanFormPageState extends State<WorkoutPlanFormPage> {
       if (widget.workoutPlan != null) {
         // Update existing plan
         await const MockApiService().updateWorkoutPlanFull(plan);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Workout plan updated successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
       } else {
         // Create new plan
         await const MockApiService().addWorkoutPlan(plan);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Workout plan created successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
       }
       if (!mounted) return;
       Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }

@@ -170,13 +170,7 @@ class ProfilePage extends StatelessWidget {
                   margin: const EdgeInsets.symmetric(horizontal: 16),
                   width: double.infinity,
                   child: OutlinedButton(
-                    onPressed: () {
-                      MockAuthService.instance.signOut();
-                      Navigator.of(context).pushAndRemoveUntil(
-                        MaterialPageRoute(builder: (_) => const LoginPage()),
-                        (route) => false,
-                      );
-                    },
+                    onPressed: () => _showLogoutDialog(context),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       side: const BorderSide(color: Colors.red, width: 2),
@@ -270,6 +264,41 @@ class ProfilePage extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _showLogoutDialog(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Sign Out'),
+          content: const Text('Are you sure you want to sign out from your account?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Sign Out'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      MockAuthService.instance.signOut();
+      if (!context.mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginPage()),
+        (route) => false,
+      );
+    }
   }
 
   List<Widget> _buildAccountItems() {
