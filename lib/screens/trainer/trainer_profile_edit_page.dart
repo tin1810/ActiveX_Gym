@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/profile_store.dart';
-import '../../services/mock_api.dart';
+import '../../services/network_service.dart';
 import '../../models/er_models.dart';
 
 class TrainerProfileEditPage extends StatefulWidget {
@@ -50,7 +50,7 @@ class _TrainerProfileEditPageState extends State<TrainerProfileEditPage> {
       ..email = _email.text.trim()
       ..phone = _phone.text.trim()
       ..location = _location.text.trim();
-    const MockApiService()
+    const ApiServiceFor()
         .updateTrainerProfile(TrainerProfileModel(
           name: ProfileStore.trainer.name,
           title: ProfileStore.trainer.title,

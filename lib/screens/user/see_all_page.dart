@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/exercise.dart';
-import '../../services/mock_api.dart';
+import '../../services/network_service.dart';
 import '../../utils/app_text_style.dart';
 import 'exercise_detail_page.dart';
 
@@ -12,7 +12,7 @@ class SeeAllPage extends StatefulWidget {
 }
 
 class _SeeAllPageState extends State<SeeAllPage> {
-  final api = const MockApiService();
+  final api = const ApiServiceFor();
   late Future<List<ExerciseModel>> _future;
 
   @override

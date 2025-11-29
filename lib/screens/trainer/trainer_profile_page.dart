@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../utils/app_text_style.dart';
 import '../../services/profile_store.dart';
-import '../../services/mock_api.dart';
+import '../../services/network_service.dart';
 import '../../models/er_models.dart';
 import '../../services/auth.dart';
 import '../shared/login_page.dart';
@@ -20,7 +20,7 @@ class _TrainerProfilePageState extends State<TrainerProfilePage> {
   @override
   void initState() {
     super.initState();
-    _future = const MockApiService().fetchTrainerProfile();
+    _future = const ApiServiceFor().fetchTrainerProfile();
   }
 
   @override
@@ -82,7 +82,7 @@ class _TrainerProfilePageState extends State<TrainerProfilePage> {
                 final saved = await Navigator.of(context).push<bool>(
                   MaterialPageRoute(builder: (_) => const TrainerProfileEditPage()),
                 );
-                if (saved == true) setState(() => _future = const MockApiService().fetchTrainerProfile());
+                if (saved == true) setState(() => _future = const ApiServiceFor().fetchTrainerProfile());
               }),
               const SizedBox(height: 16),
               _ContactCard(),

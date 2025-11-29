@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/er_models.dart';
-import '../../services/mock_api.dart';
+import '../../services/network_service.dart';
 import '../../services/auth.dart';
 
 class NutritionPlanFormPage extends StatefulWidget {
@@ -45,7 +45,7 @@ class _NutritionPlanFormPageState extends State<NutritionPlanFormPage> {
         dailyCaloriesTarget: int.tryParse(_kcalCtrl.text.trim()) ?? 1800,
         meals: const [],
       );
-      await const MockApiService().addNutritionPlan(plan);
+      await const ApiServiceFor().addNutritionPlan(plan);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -100,7 +100,7 @@ class _NutritionPlanFormPageState extends State<NutritionPlanFormPage> {
                   _label('Assign to Client *'),
                   const SizedBox(height: 6),
                   FutureBuilder<List<UserModel>>(
-                    future: const MockApiService().fetchUsers(),
+                    future: const ApiServiceFor().fetchUsers(),
                     builder: (context, snapshot) {
                       final users = (snapshot.data ?? []).where((u) => u.role == 'user').toList();
                       return DropdownButtonFormField<String>(

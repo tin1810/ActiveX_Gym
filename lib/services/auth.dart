@@ -1,5 +1,5 @@
 import '../models/er_models.dart';
-import 'mock_api.dart';
+import 'network_service.dart';
 
 class MockAuthService {
   MockAuthService._();
@@ -35,7 +35,7 @@ class MockAuthService {
     }
     
     // Look up all users/trainers in mock API (including trainers created by admin)
-    final users = await const MockApiService().fetchUsers();
+    final users = await const ApiServiceFor().fetchUsers();
     final match = users.where((u) => u.email.toLowerCase().trim() == lower).toList();
     if (match.isEmpty) {
       throw Exception('No user account found for $email. Please sign up first.');
@@ -62,7 +62,7 @@ class MockAuthService {
     await Future.delayed(const Duration(milliseconds: 300));
     _currentUser = UserModel(id: DateTime.now().millisecondsSinceEpoch.toString(), name: name, email: email, role: 'user');
     // persist to mock api users list so trainers can assign in dropdowns
-    await const MockApiService().addUser(_currentUser);
+    await const ApiServiceFor().addUser(_currentUser);
     return _currentUser;
   }
 

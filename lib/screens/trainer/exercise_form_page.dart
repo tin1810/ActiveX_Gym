@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/exercise.dart';
-import '../../services/mock_api.dart';
+import '../../services/network_service.dart';
 import '../../services/auth.dart';
 
 class ExerciseFormPage extends StatefulWidget {
@@ -99,9 +99,9 @@ class _ExerciseFormPageState extends State<ExerciseFormPage> {
 
     try {
       if (widget.exercise != null) {
-        await const MockApiService().updateExercise(exercise);
+        await const ApiServiceFor().updateExercise(exercise);
       } else {
-        await const MockApiService().addExercise(exercise);
+        await const ApiServiceFor().addExercise(exercise);
       }
       if (mounted) {
         Navigator.pop(context, true);

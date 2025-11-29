@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../services/mock_api.dart';
+import '../../services/network_service.dart';
 import '../../services/auth.dart';
 import '../../models/er_models.dart';
 import '../../utils/app_text_style.dart';
@@ -15,7 +15,7 @@ class ChallengesPage extends StatefulWidget {
 class _ChallengesPageState extends State<ChallengesPage> {
   @override
   Widget build(BuildContext context) {
-    final api = const MockApiService();
+    final api = const ApiServiceFor();
     return Scaffold(
       appBar: AppBar(
         title: const Text('Community Challenges'),
@@ -132,7 +132,7 @@ Future<void> _editDialog(BuildContext context, CommunityChallengeModel c) async 
   final descCtrl = TextEditingController(text: c.description);
   DateTime start = DateTime.tryParse(c.startDate) ?? DateTime.now();
   DateTime end = DateTime.tryParse(c.endDate) ?? DateTime.now().add(const Duration(days: 30));
-  final api = const MockApiService();
+  final api = const ApiServiceFor();
   await showDialog(
     context: context,
     builder: (context) {

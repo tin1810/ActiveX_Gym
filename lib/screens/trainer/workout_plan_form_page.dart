@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../models/er_models.dart';
 import '../../models/exercise.dart';
-import '../../services/mock_api.dart';
+import '../../services/network_service.dart';
 import '../../services/auth.dart';
 
 class WorkoutPlanFormPage extends StatefulWidget {
@@ -209,7 +209,7 @@ class _WorkoutPlanFormPageState extends State<WorkoutPlanFormPage> {
     try {
       if (widget.workoutPlan != null) {
         // Update existing plan
-        await const MockApiService().updateWorkoutPlanFull(plan);
+        await const ApiServiceFor().updateWorkoutPlanFull(plan);
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -219,7 +219,7 @@ class _WorkoutPlanFormPageState extends State<WorkoutPlanFormPage> {
         );
       } else {
         // Create new plan
-        await const MockApiService().addWorkoutPlan(plan);
+        await const ApiServiceFor().addWorkoutPlan(plan);
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -273,7 +273,7 @@ class _WorkoutPlanFormPageState extends State<WorkoutPlanFormPage> {
                   _labeled('Assign to Client *'),
                   const SizedBox(height: 6),
                   FutureBuilder<List<UserModel>>(
-                    future: const MockApiService().fetchUsers(),
+                    future: const ApiServiceFor().fetchUsers(),
                     builder: (context, snapshot) {
                       final users = (snapshot.data ?? []).where((u) => u.role == 'user').toList();
                       return DropdownButtonFormField<String>(
@@ -648,7 +648,7 @@ class _ExerciseRowState extends State<_ExerciseRow> {
   @override
   void initState() {
     super.initState();
-    _exercisesFuture = const MockApiService().fetchExercises();
+    _exercisesFuture = const ApiServiceFor().fetchExercises();
   }
 
   void _onExerciseSelected(ExerciseModel? exercise) {

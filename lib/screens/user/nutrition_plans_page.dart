@@ -1,6 +1,6 @@
 import '../trainer/nutrition_plan_form_page.dart';
 import 'package:flutter/material.dart';
-import '../../services/mock_api.dart';
+import '../../services/network_service.dart';
 import '../../models/er_models.dart';
 import '../../utils/app_text_style.dart';
 import '../../services/auth.dart';
@@ -13,7 +13,7 @@ class NutritionPlansPage extends StatefulWidget {
 }
 
 class _NutritionPlansPageState extends State<NutritionPlansPage> {
-  final api = const MockApiService();
+  final api = const ApiServiceFor();
 
   Future<void> _delete(String id) async {
     await api.deleteNutritionPlan(id);

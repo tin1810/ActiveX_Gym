@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/exercise.dart';
-import '../../services/mock_api.dart';
+import '../../services/network_service.dart';
 import '../../services/auth.dart';
 import '../../utils/app_text_style.dart';
 import 'exercise_form_page.dart';
@@ -13,7 +13,7 @@ class ExercisesManagementPage extends StatefulWidget {
 }
 
 class _ExercisesManagementPageState extends State<ExercisesManagementPage> {
-  final api = const MockApiService();
+  final api = const ApiServiceFor();
   late Future<List<ExerciseModel>> _future;
 
   @override

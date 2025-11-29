@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../../services/mock_api.dart';
+import '../../services/network_service.dart';
 import '../../models/er_models.dart';
 import '../../utils/app_text_style.dart';
 import '../../services/auth.dart';
@@ -17,7 +17,7 @@ class WorkoutPlansPage extends StatefulWidget {
 }
 
 class _WorkoutPlansPageState extends State<WorkoutPlansPage> {
-  final api = const MockApiService();
+  final api = const ApiServiceFor();
 
   Future<void> _delete(String id) async {
     await api.deleteWorkoutPlan(id);

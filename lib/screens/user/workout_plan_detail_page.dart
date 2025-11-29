@@ -3,7 +3,7 @@ import '../../models/er_models.dart';
 import '../../models/exercise.dart';
 import '../../utils/app_text_style.dart';
 import '../../services/auth.dart';
-import '../../services/mock_api.dart';
+import '../../services/network_service.dart';
 import '../../services/database_helper.dart';
 import 'exercise_detail_page.dart';
 
@@ -16,7 +16,7 @@ class WorkoutPlanDetailPage extends StatefulWidget {
 }
 
 class _WorkoutPlanDetailPageState extends State<WorkoutPlanDetailPage> {
-  final api = const MockApiService();
+  final api = const ApiServiceFor();
   Set<String> _favoriteExerciseIds = {};
   String? _trainerName;
 

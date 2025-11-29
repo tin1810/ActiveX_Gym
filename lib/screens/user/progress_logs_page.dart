@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../services/mock_api.dart';
+import '../../services/network_service.dart';
 import '../../services/auth.dart';
 import '../../services/database_helper.dart';
 import '../../models/er_models.dart';
@@ -14,7 +14,7 @@ class ProgressLogsPage extends StatefulWidget {
 }
 
 class _ProgressLogsPageState extends State<ProgressLogsPage> {
-  final api = const MockApiService();
+  final api = const ApiServiceFor();
 
   Future<void> _refresh() async {
     setState(() {});

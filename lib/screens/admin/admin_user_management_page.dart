@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../services/mock_api.dart';
+import '../../services/network_service.dart';
 import '../../services/auth.dart';
 import '../../models/er_models.dart';
 import '../../utils/app_text_style.dart';
@@ -13,7 +13,7 @@ class AdminUserManagementPage extends StatefulWidget {
 }
 
 class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
-  final api = const MockApiService();
+  final api = const ApiServiceFor();
   int _tab = 0; // 0=Users, 1=Trainers
 
   Future<List<UserModel>> _load() async {

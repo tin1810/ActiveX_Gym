@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../../services/mock_api.dart';
+import '../../services/network_service.dart';
 import '../../models/workout.dart';
 import '../../models/exercise.dart';
 import 'exercise_detail_page.dart';
@@ -33,7 +33,7 @@ class WorkoutDetailPage extends StatefulWidget {
 
 class _WorkoutDetailPageState extends State<WorkoutDetailPage> {
   int _selectedTab = 0; // 0: Overview, 1: Exercises, 2: Details
-  final MockApiService _api = const MockApiService();
+  final ApiServiceFor _api = const ApiServiceFor();
   Future<WorkoutModel?>? _futureWorkout;
   final GlobalKey _tabsKey = GlobalKey();
 

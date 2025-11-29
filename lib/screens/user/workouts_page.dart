@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../../services/mock_api.dart';
+import '../../services/network_service.dart';
 import '../../models/workout.dart';
 import '../../models/er_models.dart';
 import 'workout_plans_page.dart';
@@ -24,7 +24,7 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
   int _selectedFilter = 0;
   final List<String> _filters = ['All', 'Strength', 'Cardio', 'Flexibility'];
   final TextEditingController _searchController = TextEditingController();
-  final MockApiService _api = const MockApiService();
+  final ApiServiceFor _api = const ApiServiceFor();
   late Future<List<WorkoutModel>> _futureWorkouts;
 
   @override

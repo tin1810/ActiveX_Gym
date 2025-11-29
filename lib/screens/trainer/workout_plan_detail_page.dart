@@ -4,7 +4,7 @@ import '../../models/er_models.dart';
 import '../../models/exercise.dart';
 import '../../utils/app_text_style.dart';
 import '../../services/auth.dart';
-import '../../services/mock_api.dart';
+import '../../services/network_service.dart';
 import 'workout_plan_form_page.dart';
 
 class TrainerWorkoutPlanDetailPage extends StatefulWidget {
@@ -17,7 +17,7 @@ class TrainerWorkoutPlanDetailPage extends StatefulWidget {
 }
 
 class _TrainerWorkoutPlanDetailPageState extends State<TrainerWorkoutPlanDetailPage> {
-  final api = const MockApiService();
+  final api = const ApiServiceFor();
 
   Future<void> _deletePlan() async {
     final confirm = await showDialog<bool>(

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../services/mock_api.dart';
+import '../../services/network_service.dart';
 import '../../models/er_models.dart';
 import '../../services/auth.dart';
 
@@ -44,7 +44,7 @@ class _ChallengeFormPageState extends State<ChallengeFormPage> {
       endDate: _end.toIso8601String(),
       participants: [ChallengeUserModel(userId: MockAuthService.instance.currentUser.id, progress: 0)],
     );
-    await const MockApiService().addChallenge(challenge);
+    await const ApiServiceFor().addChallenge(challenge);
     if (!mounted) return;
     Navigator.of(context).pop(true);
   }
