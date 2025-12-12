@@ -29,27 +29,98 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
+    
     setState(() => _loading = true);
+    
     try {
       await MockAuthService.instance.signIn(
         email: _emailCtrl.text.trim(),
         password: _passwordCtrl.text,
       );
+      
       if (!mounted) return;
+      
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Login successful!'),
+          backgroundColor: Color(0xFF7ED957),
+          duration: Duration(seconds: 1),
+        ),
+      );
+      
+      // Navigate based on user role
       final isTrainer = MockAuthService.instance.isTrainer;
       final isAdmin = MockAuthService.instance.isAdmin;
+      
+      await Future.delayed(const Duration(milliseconds: 300));
+      
+      if (!mounted) return;
+      
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => isAdmin ? const AdminUserManagementPage() : (isTrainer ? const TrainerMainScreen() : const MainScreen())),
+        MaterialPageRoute(
+          builder: (_) => isAdmin 
+              ? const AdminUserManagementPage() 
+              : (isTrainer ? const TrainerMainScreen() : const MainScreen()),
+        ),
       );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Sign in failed: $e')),
-        );
+      if (!mounted) return;
+      
+      // Extract clean error message
+      String errorMessage = e.toString();
+      if (errorMessage.startsWith('Exception:')) {
+        errorMessage = errorMessage.substring(12);
       }
+      
+      // Show user-friendly error message
+      _showError(errorMessage);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+    
+    // Clean up error message
+    String cleanMessage = message;
+    if (cleanMessage.startsWith('Exception: ')) {
+      cleanMessage = cleanMessage.substring(12);
+    }
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.error_outline, color: Colors.white, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                cleanMessage,
+                style: const TextStyle(fontSize: 14),
+                maxLines: 5,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.red.shade700,
+        duration: Duration(seconds: cleanMessage.length > 100 ? 6 : 4),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        action: SnackBarAction(
+          label: 'OK',
+          textColor: Colors.white,
+          onPressed: () {
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          },
+        ),
+      ),
+    );
   }
 
   OutlineInputBorder _roundedBorder(Color color) => OutlineInputBorder(

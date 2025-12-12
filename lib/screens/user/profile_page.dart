@@ -292,7 +292,7 @@ class ProfilePage extends StatelessWidget {
     );
 
     if (confirmed == true) {
-      MockAuthService.instance.signOut();
+      await MockAuthService.instance.signOut();
       if (!context.mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const LoginPage()),

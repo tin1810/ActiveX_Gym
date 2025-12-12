@@ -28,22 +28,104 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   Future<void> _register() async {
+    // Validate form first
     if (!_formKey.currentState!.validate()) return;
+    
+    // Check if user agreed to terms
+    if (!_agree) {
+      _showError('Please agree to the Terms & Conditions and Privacy Policy');
+      return;
+    }
+    
     setState(() => _loading = true);
+    
     try {
+      // Call API registration (which also saves to SQLite)
       await MockAuthService.instance.register(
         name: _nameCtrl.text.trim(),
         email: _emailCtrl.text.trim(),
         password: _passwordCtrl.text,
       );
+      
       if (!mounted) return;
+      
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Registration successful! Welcome to ActiveXtra'),
+          backgroundColor: Color(0xFF7ED957),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      
+      // Navigate to main screen after a short delay
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      if (!mounted) return;
+      
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const MainScreen()),
         (route) => false,
       );
+    } catch (e) {
+      if (!mounted) return;
+      
+      // Extract clean error message
+      String errorMessage = e.toString();
+      if (errorMessage.startsWith('Exception: ')) {
+        errorMessage = errorMessage.substring(12);
+      }
+      
+      // Show user-friendly error message
+      _showError(errorMessage);
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+    
+    // Clean up error message
+    String cleanMessage = message;
+    if (cleanMessage.startsWith('Exception: ')) {
+      cleanMessage = cleanMessage.substring(12);
+    }
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.error_outline, color: Colors.white, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                cleanMessage,
+                style: const TextStyle(fontSize: 14),
+                maxLines: 5,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.red.shade700,
+        duration: Duration(seconds: cleanMessage.length > 100 ? 6 : 4),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        action: SnackBarAction(
+          label: 'OK',
+          textColor: Colors.white,
+          onPressed: () {
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          },
+        ),
+      ),
+    );
   }
 
   OutlineInputBorder _roundedBorder(Color color) => OutlineInputBorder(
@@ -100,11 +182,21 @@ class _RegisterPageState extends State<RegisterPage> {
                     const SizedBox(height: 6),
                     TextFormField(
                       controller: _emailCtrl,
+                      keyboardType: TextInputType.emailAddress,
                       decoration: InputDecoration(
                         hintText: 'Enter your email', filled: true, fillColor: Colors.white,
                         border: _roundedBorder(Colors.transparent), enabledBorder: _roundedBorder(Colors.white70), focusedBorder: _roundedBorder(brandGreen),
                       ),
-                      validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) {
+                          return 'Email is required';
+                        }
+                        final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                        if (!emailRegex.hasMatch(v.trim())) {
+                          return 'Please enter a valid email address';
+                        }
+                        return null;
+                      },
                     ),
                     const SizedBox(height: 12),
                     // Password
@@ -124,6 +216,15 @@ class _RegisterPageState extends State<RegisterPage> {
                           onPressed: () => setState(() => _obscure = !_obscure),
                         ),
                       ),
+                      validator: (v) {
+                        if (v == null || v.isEmpty) {
+                          return 'Password is required';
+                        }
+                        if (v.length < 8) {
+                          return 'Password must be at least 8 characters';
+                        }
+                        return null;
+                      },
                     ),
                     const SizedBox(height: 6),
                     Text('Must be at least 8 characters', style: AppTextStyle.regularText(size: 12, color: Colors.white70)),
@@ -147,16 +248,33 @@ class _RegisterPageState extends State<RegisterPage> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: _loading || !_agree ? null : _register,
+                        onPressed: (_loading || !_agree) ? null : _register,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: brandGreen,
                           foregroundColor: Colors.black,
+                          disabledBackgroundColor: Colors.grey.shade400,
+                          disabledForegroundColor: Colors.grey.shade600,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 2,
                         ),
                         child: _loading
-                            ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
-                            : const Text('Sign Up'),
+                            ? const SizedBox(
+                                height: 18,
+                                width: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.black,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                                ),
+                              )
+                            : const Text(
+                                'Sign Up',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                       ),
                     ),
                     const SizedBox(height: 12),

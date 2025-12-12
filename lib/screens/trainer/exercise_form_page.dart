@@ -23,6 +23,7 @@ class _ExerciseFormPageState extends State<ExerciseFormPage> {
   String _difficulty = 'Beginner';
   final List<String> _targetMuscles = [];
   final _muscleInputCtrl = TextEditingController();
+  bool _loading = false;
 
   @override
   void initState() {
@@ -76,10 +77,15 @@ class _ExerciseFormPageState extends State<ExerciseFormPage> {
     if (!_formKey.currentState!.validate()) return;
     if (_targetMuscles.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please add at least one target muscle')),
+        const SnackBar(
+          content: Text('Please add at least one target muscle'),
+          backgroundColor: Colors.orange,
+        ),
       );
       return;
     }
+
+    setState(() => _loading = true);
 
     final instructions = _instructionsCtrl.text.trim().isEmpty
         ? null
@@ -103,14 +109,40 @@ class _ExerciseFormPageState extends State<ExerciseFormPage> {
       } else {
         await const ApiServiceFor().addExercise(exercise);
       }
+      
       if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(widget.exercise == null 
+                ? 'Exercise created successfully!' 
+                : 'Exercise updated successfully!'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        
         Navigator.pop(context, true);
       }
     } catch (e) {
       if (mounted) {
+        String errorMessage = e.toString();
+        if (errorMessage.startsWith('Exception: ')) {
+          errorMessage = errorMessage.substring(12);
+        } else if (errorMessage.startsWith('Exception:')) {
+          errorMessage = errorMessage.substring(10);
+        }
+        
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          SnackBar(
+            content: Text('Error: $errorMessage'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
       }
     }
   }
@@ -265,12 +297,25 @@ class _ExerciseFormPageState extends State<ExerciseFormPage> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _save,
+                onPressed: _loading ? null : _save,
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   backgroundColor: Colors.green,
+                  disabledBackgroundColor: Colors.grey,
                 ),
-                child: const Text('Save Exercise', style: TextStyle(fontSize: 16)),
+                child: _loading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : Text(
+                        widget.exercise == null ? 'Create Exercise' : 'Update Exercise',
+                        style: const TextStyle(fontSize: 16, color: Colors.white),
+                      ),
               ),
             ),
           ],

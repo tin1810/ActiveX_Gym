@@ -41,6 +41,8 @@ class _WorkoutPlanFormPageState extends State<WorkoutPlanFormPage> {
     if (widget.workoutPlan != null) {
       // Load existing workout plan data for editing
       _loadWorkoutPlanData(widget.workoutPlan!);
+      // Load workout schedule asynchronously
+      _loadWorkoutSchedule(widget.workoutPlan!.workouts);
     } else {
       // Create mode - start with one day
       _days = [
@@ -67,24 +69,89 @@ class _WorkoutPlanFormPageState extends State<WorkoutPlanFormPage> {
     if (plan.tags != null) {
       _tags.addAll(plan.tags!);
     }
-    if (plan.imageUrl != null && plan.imageUrl!.startsWith('data:image')) {
-      // Load existing base64 image - extract base64 part
-      try {
-        final parts = plan.imageUrl!.split(',');
-        if (parts.length > 1) {
-          _imageBase64 = parts[1];
+    // Load selected user/client ID
+    if (plan.userId != null && plan.userId!.isNotEmpty) {
+      _clientId = plan.userId;
+    }
+    // Load existing image - handle both base64 data URI and regular URLs
+    if (plan.imageUrl != null && plan.imageUrl!.isNotEmpty) {
+      if (plan.imageUrl!.startsWith('data:image')) {
+        // Load existing base64 image - extract base64 part
+        try {
+          final parts = plan.imageUrl!.split(',');
+          if (parts.length > 1) {
+            _imageBase64 = parts[1];
+          }
+        } catch (e) {
+          // If parsing fails, leave it null
+          print('Error parsing base64 image: $e');
         }
-      } catch (e) {
-        // If parsing fails, leave it null
+      } else {
+        // It's a regular URL - we'll display it using Image.network in the UI
+        // Store the URL in _imageBase64 as a marker, or create a separate variable
+        // For now, we'll handle it in the display logic
+        _imageBase64 = plan.imageUrl; // Store URL temporarily
       }
     }
-    // TODO: Load workout schedule days if needed
-    // For now, start with empty days
-    _days = [
-      _DayPlan(dayName: 'Monday', exercises: [
-        _ExerciseRow(showHeader: false, key: GlobalKey<_ExerciseRowState>()),
-      ]),
-    ];
+  }
+
+  Future<void> _loadWorkoutSchedule(List<PlanWorkoutModel> workouts) async {
+    // Day names mapping (1 = Monday, 7 = Sunday)
+    const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    
+    // Group workouts by dayOfWeek
+    final workoutsByDay = <int, List<PlanWorkoutModel>>{};
+    for (var workout in workouts) {
+      final day = workout.dayOfWeek;
+      if (day >= 1 && day <= 7) {
+        workoutsByDay.putIfAbsent(day, () => []).add(workout);
+      }
+    }
+    
+    // Fetch all exercises to match by ID
+    final exercisesList = await const ApiServiceFor().fetchExercises(limit: 100);
+    final exercisesMap = {for (var e in exercisesList) e.id: e};
+    
+    // Create day plans with exercises
+    final List<_DayPlan> loadedDays = [];
+    
+    // If no workouts, start with one empty day
+    if (workoutsByDay.isEmpty) {
+      loadedDays.add(_DayPlan(
+        dayName: 'Monday',
+        exercises: [_ExerciseRow(showHeader: false, key: GlobalKey<_ExerciseRowState>())],
+      ));
+    } else {
+      // Create days for each dayOfWeek that has workouts
+      for (int dayOfWeek = 1; dayOfWeek <= 7; dayOfWeek++) {
+        if (workoutsByDay.containsKey(dayOfWeek)) {
+          final dayWorkouts = workoutsByDay[dayOfWeek]!;
+          final dayName = dayNames[dayOfWeek - 1];
+          
+          // Create exercise rows for each workout
+          final List<_ExerciseRow> exerciseRows = [];
+          for (var workout in dayWorkouts) {
+            final exerciseKey = GlobalKey<_ExerciseRowState>();
+            final exerciseRow = _ExerciseRow(showHeader: false, key: exerciseKey);
+            exerciseRows.add(exerciseRow);
+            
+            // Set the exercise after the widget is built
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              final exercise = exercisesMap[workout.workoutId];
+              if (exercise != null && exerciseKey.currentState != null) {
+                exerciseKey.currentState!.setExercise(exercise, sets: workout.sets, reps: workout.reps);
+              }
+            });
+          }
+          
+          loadedDays.add(_DayPlan(dayName: dayName, exercises: exerciseRows));
+        }
+      }
+    }
+    
+    setState(() {
+      _days = loadedDays;
+    });
   }
 
   void _addDay() {
@@ -120,12 +187,15 @@ class _WorkoutPlanFormPageState extends State<WorkoutPlanFormPage> {
         imageQuality: 85,
       );
       if (image != null) {
-        setState(() {
-          _selectedImage = image;
-        });
         // Convert image to base64 for storage
         final bytes = await image.readAsBytes();
-        _imageBase64 = base64Encode(bytes);
+        final base64String = base64Encode(bytes);
+        
+        // Update state with both selected image and base64
+        setState(() {
+          _selectedImage = image;
+          _imageBase64 = base64String;
+        });
       }
     } catch (e) {
       if (mounted) {
@@ -143,6 +213,261 @@ class _WorkoutPlanFormPageState extends State<WorkoutPlanFormPage> {
     });
   }
 
+  Widget _buildImagePreview() {
+    // Priority 1: Show newly selected image from gallery
+    if (_selectedImage != null) {
+      return Stack(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.file(
+              File(_selectedImage!.path),
+              width: double.infinity,
+              height: 150,
+              fit: BoxFit.cover,
+            ),
+          ),
+          Positioned(
+            top: 8,
+            right: 8,
+            child: IconButton(
+              onPressed: _removeImage,
+              icon: const Icon(Icons.close, color: Colors.white),
+              style: IconButton.styleFrom(
+                backgroundColor: Colors.black.withOpacity(0.6),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+    
+    // Priority 2: Show existing base64 image (from API or previously converted)
+    if (_imageBase64 != null) {
+      // Check if it's a base64 data URI or a regular URL
+      if (_imageBase64!.startsWith('data:image')) {
+        // Extract base64 part from data URI
+        try {
+          final parts = _imageBase64!.split(',');
+          if (parts.length > 1) {
+            return Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.memory(
+                    base64Decode(parts[1]),
+                    width: double.infinity,
+                    height: 150,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return _buildPlaceholder();
+                    },
+                  ),
+                ),
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: IconButton(
+                    onPressed: _removeImage,
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.black.withOpacity(0.6),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }
+        } catch (e) {
+          print('Error decoding base64 image: $e');
+          return _buildPlaceholder();
+        }
+      } else if (_imageBase64!.startsWith('http://') || _imageBase64!.startsWith('https://')) {
+        // It's a regular URL - display using Image.network
+        return Stack(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.network(
+                _imageBase64!,
+                width: double.infinity,
+                height: 150,
+                fit: BoxFit.cover,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Container(
+                    width: double.infinity,
+                    height: 150,
+                    color: Colors.grey[200],
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        value: loadingProgress.expectedTotalBytes != null
+                            ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                            : null,
+                      ),
+                    ),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) {
+                  return _buildPlaceholder();
+                },
+              ),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: IconButton(
+                onPressed: _removeImage,
+                icon: const Icon(Icons.close, color: Colors.white),
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.black.withOpacity(0.6),
+                ),
+              ),
+            ),
+          ],
+        );
+      } else {
+        // Try to decode as pure base64 string (without data URI prefix)
+        try {
+          return Stack(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.memory(
+                  base64Decode(_imageBase64!),
+                  width: double.infinity,
+                  height: 150,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return _buildPlaceholder();
+                  },
+                ),
+              ),
+              Positioned(
+                top: 8,
+                right: 8,
+                child: IconButton(
+                  onPressed: _removeImage,
+                  icon: const Icon(Icons.close, color: Colors.white),
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.black.withOpacity(0.6),
+                  ),
+                ),
+              ),
+            ],
+          );
+        } catch (e) {
+          print('Error decoding base64 string: $e');
+          return _buildPlaceholder();
+        }
+      }
+    }
+    
+    // Priority 3: Show existing image from workout plan (if editing)
+    if (widget.workoutPlan?.imageUrl != null && widget.workoutPlan!.imageUrl!.isNotEmpty) {
+      final imageUrl = widget.workoutPlan!.imageUrl!;
+      if (imageUrl.startsWith('data:image')) {
+        // Base64 data URI
+        try {
+          final parts = imageUrl.split(',');
+          if (parts.length > 1) {
+            return Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.memory(
+                    base64Decode(parts[1]),
+                    width: double.infinity,
+                    height: 150,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return _buildPlaceholder();
+                    },
+                  ),
+                ),
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: IconButton(
+                    onPressed: _removeImage,
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.black.withOpacity(0.6),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }
+        } catch (e) {
+          print('Error decoding existing base64 image: $e');
+          return _buildPlaceholder();
+        }
+      } else if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+        // Regular URL
+        return Stack(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.network(
+                imageUrl,
+                width: double.infinity,
+                height: 150,
+                fit: BoxFit.cover,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Container(
+                    width: double.infinity,
+                    height: 150,
+                    color: Colors.grey[200],
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        value: loadingProgress.expectedTotalBytes != null
+                            ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                            : null,
+                      ),
+                    ),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) {
+                  return _buildPlaceholder();
+                },
+              ),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: IconButton(
+                onPressed: _removeImage,
+                icon: const Icon(Icons.close, color: Colors.white),
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.black.withOpacity(0.6),
+                ),
+              ),
+            ),
+          ],
+        );
+      }
+    }
+    
+    // Priority 4: Show placeholder if no image
+    return _buildPlaceholder();
+  }
+
+  Widget _buildPlaceholder() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.add_photo_alternate, size: 48, color: Colors.grey[400]),
+        const SizedBox(height: 8),
+        Text(
+          'Tap to select image from gallery',
+          style: TextStyle(color: Colors.grey[600], fontSize: 14),
+        ),
+      ],
+    );
+  }
+
   @override
   void dispose() {
     _nameCtrl.dispose();
@@ -157,10 +482,24 @@ class _WorkoutPlanFormPageState extends State<WorkoutPlanFormPage> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    
+    // Validate description is not empty
+    if (_descCtrl.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Description is required'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    
     final trainer = MockAuthService.instance.currentUser;
     
     // Build workouts list from days and exercises
     final List<PlanWorkoutModel> workouts = [];
+    final List<String> invalidExerciseIds = [];
+    
     for (int dayIndex = 0; dayIndex < _days.length; dayIndex++) {
       final day = _days[dayIndex];
       for (final exerciseRow in day.exercises) {
@@ -168,19 +507,60 @@ class _WorkoutPlanFormPageState extends State<WorkoutPlanFormPage> {
         if (key != null && key is GlobalKey<_ExerciseRowState>) {
           final state = key.currentState;
           if (state != null && state.selectedExercise != null) {
+            final exercise = state.selectedExercise!;
             final sets = int.tryParse(state.sets) ?? 3;
             final reps = state.reps.trim();
-            if (reps.isNotEmpty) {
+            
+            // Validate exercise ID is not empty and looks like a valid UUID
+            if (reps.isNotEmpty && exercise.id.isNotEmpty) {
+              // Check if ID looks like a UUID (basic validation)
+              final uuidPattern = RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', caseSensitive: false);
+              if (!uuidPattern.hasMatch(exercise.id)) {
+                invalidExerciseIds.add('${exercise.title} (ID: ${exercise.id})');
+                continue;
+              }
+              
               workouts.add(PlanWorkoutModel(
-                workoutId: state.selectedExercise!.id,
-                dayOfWeek: dayIndex,
+                workoutId: exercise.id,
+                dayOfWeek: dayIndex + 1, // API expects 1-7 (Monday=1, Sunday=7)
                 sets: sets,
                 reps: reps,
               ));
+            } else if (reps.isEmpty) {
+              invalidExerciseIds.add('${exercise.title} (missing reps)');
+            } else if (exercise.id.isEmpty) {
+              invalidExerciseIds.add('${exercise.title} (invalid ID)');
             }
           }
         }
       }
+    }
+    
+    // Validate that at least one workout is added
+    if (workouts.isEmpty) {
+      String errorMsg = 'Please add at least one exercise to the workout plan';
+      if (invalidExerciseIds.isNotEmpty) {
+        errorMsg += '\n\nInvalid exercises:\n${invalidExerciseIds.join('\n')}';
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMsg),
+          backgroundColor: Colors.orange,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+      return;
+    }
+    
+    // Warn about invalid exercises but continue if we have at least one valid
+    if (invalidExerciseIds.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Warning: Some exercises were skipped due to invalid IDs:\n${invalidExerciseIds.join('\n')}'),
+          backgroundColor: Colors.orange,
+          duration: const Duration(seconds: 4),
+        ),
+      );
     }
     
     // Calculate exercises count from all days
@@ -204,8 +584,15 @@ class _WorkoutPlanFormPageState extends State<WorkoutPlanFormPage> {
       imageUrl: _imageBase64 != null 
           ? 'data:image/jpeg;base64,$_imageBase64' 
           : widget.workoutPlan?.imageUrl, // Keep existing image if not changed
+      userId: _clientId, // Selected user/client ID from dropdown
     );
 
+    // Debug: Print workout IDs being sent
+    print('Submitting workout plan with ${workouts.length} workouts:');
+    for (var w in workouts) {
+      print('  - workoutId: ${w.workoutId}, dayOfWeek: ${w.dayOfWeek}, sets: ${w.sets}, reps: ${w.reps}');
+    }
+    
     try {
       if (widget.workoutPlan != null) {
         // Update existing plan
@@ -215,6 +602,7 @@ class _WorkoutPlanFormPageState extends State<WorkoutPlanFormPage> {
           const SnackBar(
             content: Text('Workout plan updated successfully'),
             backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
           ),
         );
       } else {
@@ -225,6 +613,7 @@ class _WorkoutPlanFormPageState extends State<WorkoutPlanFormPage> {
           const SnackBar(
             content: Text('Workout plan created successfully'),
             backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
           ),
         );
       }
@@ -232,10 +621,27 @@ class _WorkoutPlanFormPageState extends State<WorkoutPlanFormPage> {
       Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) {
+        String errorMessage = e.toString();
+        if (errorMessage.startsWith('Exception: ')) {
+          errorMessage = errorMessage.substring(12);
+        } else if (errorMessage.startsWith('Exception:')) {
+          errorMessage = errorMessage.substring(10);
+        }
+        
+        // Check if error mentions invalid workoutId
+        if (errorMessage.contains('workoutId') && errorMessage.contains('invalid')) {
+          errorMessage = 'One or more exercise IDs are invalid. Please ensure:\n'
+              '1. Exercises are created in the backend first\n'
+              '2. You are using exercises from the API (not local/mock data)\n'
+              '3. Exercise IDs are valid UUIDs\n\n'
+              'Original error: $errorMessage';
+        }
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: $e'),
+            content: Text('Error: $errorMessage'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 6),
           ),
         );
       }
@@ -324,6 +730,15 @@ class _WorkoutPlanFormPageState extends State<WorkoutPlanFormPage> {
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 16),
+                  _labeled('Description *'),
+                  const SizedBox(height: 6),
+                  TextFormField(
+                    controller: _descCtrl,
+                    maxLines: 3,
+                    decoration: const InputDecoration(hintText: 'Describe the workout plan (e.g., A 4-week plan for beginners)'),
+                    validator: (v) => v == null || v.trim().isEmpty ? 'Description is required' : null,
                   ),
                   const SizedBox(height: 16),
                   _labeled('Fitness Goal *'),
@@ -425,67 +840,7 @@ class _WorkoutPlanFormPageState extends State<WorkoutPlanFormPage> {
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: Colors.grey[300]!),
                       ),
-                      child: _selectedImage != null
-                          ? Stack(
-                              children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Image.file(
-                                    File(_selectedImage!.path),
-                                    width: double.infinity,
-                                    height: 150,
-                                    fit: BoxFit.cover,
-                                  ),
-                                ),
-                                Positioned(
-                                  top: 8,
-                                  right: 8,
-                                  child: IconButton(
-                                    onPressed: _removeImage,
-                                    icon: const Icon(Icons.close, color: Colors.white),
-                                    style: IconButton.styleFrom(
-                                      backgroundColor: Colors.black.withOpacity(0.6),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            )
-                          : _imageBase64 != null && widget.workoutPlan != null
-                              ? Stack(
-                                  children: [
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(12),
-                                      child: Image.memory(
-                                        base64Decode(_imageBase64!),
-                                        width: double.infinity,
-                                        height: 150,
-                                        fit: BoxFit.cover,
-                                      ),
-                                    ),
-                                    Positioned(
-                                      top: 8,
-                                      right: 8,
-                                      child: IconButton(
-                                        onPressed: _removeImage,
-                                        icon: const Icon(Icons.close, color: Colors.white),
-                                        style: IconButton.styleFrom(
-                                          backgroundColor: Colors.black.withOpacity(0.6),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                )
-                              : Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.add_photo_alternate, size: 48, color: Colors.grey[400]),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      'Tap to select image from gallery',
-                                      style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                                    ),
-                                  ],
-                                ),
+                      child: _buildImagePreview(),
                     ),
                   ),
                 ],
@@ -645,10 +1000,26 @@ class _ExerciseRowState extends State<_ExerciseRow> {
   String get sets => setsCtrl.text;
   String get reps => repsCtrl.text;
 
+  // Method to set exercise programmatically (for loading existing data)
+  void setExercise(ExerciseModel? exercise, {int? sets, String? reps}) {
+    if (exercise != null) {
+      setState(() {
+        _selectedExercise = exercise;
+        if (sets != null) setsCtrl.text = sets.toString();
+        if (reps != null) repsCtrl.text = reps;
+        // Auto-fill rest from selected exercise if not already set
+        if (restCtrl.text == '60') {
+          restCtrl.text = exercise.restSeconds.toString();
+        }
+      });
+    }
+  }
+
   @override
   void initState() {
     super.initState();
-    _exercisesFuture = const ApiServiceFor().fetchExercises();
+    // Fetch exercises from API with limit 20
+    _exercisesFuture = const ApiServiceFor().fetchExercises(limit: 20);
   }
 
   void _onExerciseSelected(ExerciseModel? exercise) {
@@ -694,14 +1065,37 @@ class _ExerciseRowState extends State<_ExerciseRow> {
         FutureBuilder<List<ExerciseModel>>(
           future: _exercisesFuture,
           builder: (context, snapshot) {
-            if (!snapshot.hasData) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
               return const SizedBox(
                 height: 56,
                 child: Center(child: CircularProgressIndicator()),
               );
             }
-            final exercises = snapshot.data!;
-            if (exercises.isEmpty) {
+            
+            if (snapshot.hasError) {
+              return Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red[200]!),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.error_outline, color: Colors.red[700], size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Error loading exercises: ${snapshot.error}',
+                        style: TextStyle(color: Colors.red[700], fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+            
+            if (!snapshot.hasData || snapshot.data!.isEmpty) {
               return Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -723,6 +1117,8 @@ class _ExerciseRowState extends State<_ExerciseRow> {
                 ),
               );
             }
+            
+            final exercises = snapshot.data!;
             return DropdownButtonFormField<ExerciseModel>(
               value: _selectedExercise,
               decoration: const InputDecoration(

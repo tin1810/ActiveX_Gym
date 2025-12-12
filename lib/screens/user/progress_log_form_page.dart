@@ -63,26 +63,96 @@ class _ProgressLogFormPageState extends State<ProgressLogFormPage> {
     final userId = MockAuthService.instance.currentUser.id;
     final dateStr = '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
     
+    final weight = double.tryParse(_weightCtrl.text);
+    final calories = int.tryParse(_caloriesCtrl.text);
+    
+    // Validate required fields
+    if (weight == null || weight <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a valid weight'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    
+    if (calories == null || calories < 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter valid calories burned'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    
     final log = ProgressLogModel(
       userId: userId,
       date: dateStr,
-      weightKg: double.tryParse(_weightCtrl.text) ?? 0.0,
-      caloriesBurned: int.tryParse(_caloriesCtrl.text) ?? 0,
+      weightKg: weight,
+      caloriesBurned: calories,
       notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
+      bodyFatPercentage: null, // Optional field, not in current form
+      muscleMass: null, // Optional field, not in current form
     );
 
     try {
       final api = const ApiServiceFor();
-      await api.addProgressLog(log);
       
-      if (!mounted) return;
-      Navigator.of(context).pop(true);
-    } catch (e) {
-      if (mounted) {
+      if (widget.log != null && widget.log!.id != null) {
+        // Update existing log
+        final updatedLog = ProgressLogModel(
+          id: widget.log!.id,
+          userId: userId,
+          date: dateStr,
+          weightKg: weight,
+          caloriesBurned: calories,
+          notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
+          bodyFatPercentage: widget.log!.bodyFatPercentage,
+          muscleMass: widget.log!.muscleMass,
+        );
+        await api.updateProgressLog(updatedLog);
+        
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          const SnackBar(
+            content: Text('Progress log updated successfully'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      } else {
+        // Create new log
+        await api.addProgressLog(log);
+        
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Progress log saved successfully'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
         );
       }
+      
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      if (!mounted) return;
+      String errorMessage = e.toString();
+      if (errorMessage.startsWith('Exception: ')) {
+        errorMessage = errorMessage.substring(12);
+      } else if (errorMessage.startsWith('Exception:')) {
+        errorMessage = errorMessage.substring(10);
+      }
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $errorMessage'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+        ),
+      );
     }
   }
 

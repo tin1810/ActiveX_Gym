@@ -13,14 +13,23 @@ class UserModel {
   final String role; // user | trainer | admin
   final String? goal;
   final String? password; // only used for trainer/admin in mock
-  factory UserModel.fromJson(Map<String, dynamic> j) => UserModel(
-        id: j['id'] as String,
-        name: j['name'] as String,
-        email: j['email'] as String,
-        role: j['role'] as String,
-        goal: j['goal'] as String?,
-        password: j['password'] as String?,
-      );
+  factory UserModel.fromJson(Map<String, dynamic> j) {
+    // Safely extract string values with null handling
+    String safeString(dynamic value, [String defaultValue = '']) {
+      if (value == null) return defaultValue;
+      if (value is String) return value;
+      return value.toString();
+    }
+    
+    return UserModel(
+      id: safeString(j['id']),
+      name: safeString(j['name']),
+      email: safeString(j['email']),
+      role: safeString(j['role'], 'user'),
+      goal: j['goal'] != null ? safeString(j['goal']) : null,
+      password: j['password'] != null ? safeString(j['password']) : null,
+    );
+  }
 }
 
 class WorkoutPlanModel {
@@ -37,6 +46,7 @@ class WorkoutPlanModel {
     this.tags,
     this.equipment,
     this.imageUrl,
+    this.userId,
   });
   final String id;
   final String trainerId;
@@ -50,22 +60,58 @@ class WorkoutPlanModel {
   final List<String>? tags;
   final String? equipment;
   final String? imageUrl;
-  factory WorkoutPlanModel.fromJson(Map<String, dynamic> j) => WorkoutPlanModel(
-        id: j['id'] as String,
-        trainerId: j['trainerId'] as String,
-        name: j['name'] as String,
-        description: j['description'] as String,
-        difficulty: j['difficulty'] as String,
-        workouts: (j['workouts'] as List<dynamic>)
+  final String? userId;
+  factory WorkoutPlanModel.fromJson(Map<String, dynamic> j) {
+    // Safely extract string values with null handling
+    String safeString(dynamic value, [String defaultValue = '']) {
+      if (value == null) return defaultValue;
+      if (value is String) return value;
+      return value.toString();
+    }
+    
+    int? safeInt(dynamic value) {
+      if (value == null) return null;
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      return int.tryParse(value.toString());
+    }
+    
+    List<String>? safeStringList(dynamic value) {
+      if (value == null) return null;
+      if (value is List) {
+        return value.map((e) => safeString(e)).toList();
+      }
+      return null;
+    }
+    
+    List<PlanWorkoutModel> safeWorkoutsList(dynamic value) {
+      if (value == null) return [];
+      if (value is List) {
+        return value
             .map((e) => PlanWorkoutModel.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        durationMinutes: j['durationMinutes'] as int?,
-        kcal: j['kcal'] as int?,
-        exercisesCount: j['exercisesCount'] as int?,
-        tags: j['tags'] != null ? (j['tags'] as List<dynamic>).cast<String>() : null,
-        equipment: j['equipment'] as String?,
-        imageUrl: j['imageUrl'] as String?,
-      );
+            .toList();
+      }
+      return [];
+    }
+    
+    // Handle both 'userId' and 'selectedUserId' from API
+    final userIdValue = j['userId'] ?? j['selectedUserId'];
+    return WorkoutPlanModel(
+      id: safeString(j['id']),
+      trainerId: safeString(j['trainerId']),
+      name: safeString(j['name']),
+      description: safeString(j['description']),
+      difficulty: safeString(j['difficulty'], 'beginner'),
+      workouts: safeWorkoutsList(j['workouts']),
+      durationMinutes: safeInt(j['durationMinutes']),
+      kcal: safeInt(j['kcal']),
+      exercisesCount: safeInt(j['exercisesCount']),
+      tags: safeStringList(j['tags']),
+      equipment: j['equipment'] != null ? safeString(j['equipment']) : null,
+      imageUrl: j['imageUrl'] != null ? safeString(j['imageUrl']) : null,
+      userId: userIdValue != null ? safeString(userIdValue) : null,
+    );
+  }
 }
 
 class PlanWorkoutModel {
@@ -79,12 +125,30 @@ class PlanWorkoutModel {
   final int dayOfWeek;
   final int sets;
   final String reps;
-  factory PlanWorkoutModel.fromJson(Map<String, dynamic> j) => PlanWorkoutModel(
-        workoutId: j['workoutId'] as String,
-        dayOfWeek: (j['dayOfWeek'] as num).toInt(),
-        sets: (j['sets'] as num).toInt(),
-        reps: j['reps'] as String,
-      );
+  factory PlanWorkoutModel.fromJson(Map<String, dynamic> j) {
+    // Safely extract values with null handling
+    String safeString(dynamic value, [String defaultValue = '']) {
+      if (value == null) return defaultValue;
+      if (value is String) return value;
+      return value.toString();
+    }
+    
+    int safeInt(dynamic value, [int defaultValue = 0]) {
+      if (value == null) return defaultValue;
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      return int.tryParse(value.toString()) ?? defaultValue;
+    }
+    
+    // Handle both 'workoutId' and 'exercise_id' (API returns exercise_id)
+    final workoutId = j['workoutId'] ?? j['exercise_id'] ?? j['exerciseId'];
+    return PlanWorkoutModel(
+      workoutId: safeString(workoutId),
+      dayOfWeek: safeInt(j['dayOfWeek'], 1),
+      sets: safeInt(j['sets'], 3),
+      reps: safeString(j['reps']),
+    );
+  }
 }
 
 class CommunityChallengeModel {
@@ -110,7 +174,7 @@ class CommunityChallengeModel {
         description: j['description'] as String,
         startDate: j['startDate'] as String,
         endDate: j['endDate'] as String,
-        participants: (j['participants'] as List<dynamic>)
+        participants: (j['participants'] as List<dynamic>? ?? [])
             .map((e) => ChallengeUserModel.fromJson(e as Map<String, dynamic>))
             .toList(),
         createdBy: j['createdBy'] as String?,
@@ -166,23 +230,32 @@ class MealModel {
 
 class ProgressLogModel {
   ProgressLogModel({
+    this.id,
     required this.userId,
     required this.date,
     required this.weightKg,
     required this.caloriesBurned,
     this.notes,
+    this.bodyFatPercentage,
+    this.muscleMass,
   });
+  final String? id;
   final String userId;
   final String date;
   final double weightKg;
   final int caloriesBurned;
   final String? notes;
+  final double? bodyFatPercentage;
+  final double? muscleMass;
   factory ProgressLogModel.fromJson(Map<String, dynamic> j) => ProgressLogModel(
+        id: j['id'] as String?,
         userId: j['userId'] as String,
         date: j['date'] as String,
         weightKg: (j['weightKg'] as num).toDouble(),
         caloriesBurned: (j['caloriesBurned'] as num).toInt(),
         notes: j['notes'] as String?,
+        bodyFatPercentage: j['bodyFatPercentage'] != null ? (j['bodyFatPercentage'] as num).toDouble() : null,
+        muscleMass: j['muscleMass'] != null ? (j['muscleMass'] as num).toDouble() : null,
       );
 }
 

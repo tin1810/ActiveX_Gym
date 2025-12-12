@@ -22,52 +22,111 @@ class MockAuthService {
     _currentUser = UserModel(id: 't1', name: 'Coach Amy', email: 'amy@example.com', role: 'trainer');
   }
 
-  // Mock email/password sign in with role selection
+  // Login via API
   Future<UserModel> signIn({required String email, required String password}) async {
-    // no real verification; simulate latency
-    await Future.delayed(const Duration(milliseconds: 250));
-    final lower = email.toLowerCase().trim();
-    
-    // Admin account: static email check
-    if (lower == 'admin@gmail.com' || lower.contains('admin')) {
-      _currentUser = UserModel(id: 'a1', name: 'Admin', email: lower, role: 'admin');
-      return _currentUser;
-    }
-    
-    // Look up all users/trainers in mock API (including trainers created by admin)
-    final users = await const ApiServiceFor().fetchUsers();
-    final match = users.where((u) => u.email.toLowerCase().trim() == lower).toList();
-    if (match.isEmpty) {
-      throw Exception('No user account found for $email. Please sign up first.');
-    }
-    final u = match.first;
-    
-    // Handle trainer accounts created by admin - validate password
-    if (u.role.toLowerCase() == 'trainer') {
-      final storedPassword = u.password ?? '';
-      // If password is set, it must match; if empty/null, allow login (for backward compatibility)
-      if (storedPassword.isEmpty || storedPassword == password) {
-        _currentUser = UserModel(id: u.id, name: u.name, email: u.email, role: 'trainer');
+    try {
+      // Call API login endpoint
+      final apiResponse = await activeXGymApiService.login(
+        email: email,
+        password: password,
+      );
+
+      if (apiResponse.success && apiResponse.data != null) {
+        // API login successful
+        final authData = apiResponse.data!;
+        _currentUser = authData.user;
         return _currentUser;
+      } else {
+        // API returned error - build comprehensive error message
+        String errorMessage = apiResponse.message ?? '';
+        
+        if (apiResponse.errors != null && apiResponse.errors!.isNotEmpty) {
+          final errorMessages = apiResponse.errors!
+              .map((e) => e.message)
+              .where((m) => m.isNotEmpty)
+              .toList();
+          
+          if (errorMessages.isNotEmpty) {
+            errorMessage = errorMessages.toString();
+          }
+        }
+        
+        if (errorMessage.isEmpty) {
+          errorMessage = 'Login failed. Please check your credentials and try again.';
+        }
+        
+        throw Exception(errorMessage);
       }
-      throw Exception('Incorrect password');
+    } catch (e) {
+      // Re-throw with better context if it's not already an Exception
+      if (e is Exception) {
+        rethrow;
+      }
+      throw Exception('Login failed: $e');
     }
-    
-    // Regular users: no strict password validation in mock
-    _currentUser = UserModel(id: u.id, name: u.name, email: u.email, role: 'user', goal: u.goal);
-    return _currentUser;
   }
 
   Future<UserModel> register({required String name, required String email, required String password}) async {
-    await Future.delayed(const Duration(milliseconds: 300));
-    _currentUser = UserModel(id: DateTime.now().millisecondsSinceEpoch.toString(), name: name, email: email, role: 'user');
-    // persist to mock api users list so trainers can assign in dropdowns
-    await const ApiServiceFor().addUser(_currentUser);
-    return _currentUser;
+    try {
+      // Register via API only (no SQLite)
+      final apiResponse = await activeXGymApiService.register(
+        name: name,
+        email: email,
+        password: password,
+      );
+
+      if (apiResponse.success && apiResponse.data != null) {
+        // API registration successful
+        final authData = apiResponse.data!;
+        _currentUser = authData.user;
+        return _currentUser;
+      } else {
+        // API returned error - build comprehensive error message
+        String errorMessage = apiResponse.message ?? '';
+        
+        if (apiResponse.errors != null && apiResponse.errors!.isNotEmpty) {
+          final errorMessages = apiResponse.errors!
+              .map((e) {
+                // Format: "Field: Message" or just "Message"
+                if (e.field.isNotEmpty) {
+                  return '${e.field}: ${e.message}';
+                }
+                return e.message;
+              })
+              .where((m) => m.isNotEmpty)
+              .toList();
+          
+          if (errorMessages.isNotEmpty) {
+            errorMessage = errorMessages.join('\n');
+          }
+        }
+        
+        if (errorMessage.isEmpty) {
+          errorMessage = 'Registration failed. Please try again.';
+        }
+        
+        throw Exception(errorMessage);
+      }
+    } catch (e) {
+      // Re-throw with better context if it's not already an Exception
+      if (e is Exception) {
+        rethrow;
+      }
+      throw Exception('Registration failed: $e');
+    }
   }
 
-  void signOut() {
-    _currentUser = UserModel(id: 'u1', name: 'Guest', email: 'guest@example.com', role: 'user');
+  Future<void> signOut() async {
+    try {
+      // Call API logout endpoint
+      await activeXGymApiService.logout();
+    } catch (e) {
+      // Log error but continue with local signout
+      print('Logout API error: $e');
+    } finally {
+      // Always clear local user state
+      _currentUser = UserModel(id: 'u1', name: 'Guest', email: 'guest@example.com', role: 'user');
+    }
   }
 }
 

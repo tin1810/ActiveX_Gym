@@ -15,59 +15,161 @@ class AdminUserManagementPage extends StatefulWidget {
 class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
   final api = const ApiServiceFor();
   int _tab = 0; // 0=Users, 1=Trainers
+  int _refreshKey = 0; // Key to force FutureBuilder refresh
 
   Future<List<UserModel>> _load() async {
-    final all = await api.fetchUsers();
-    return all.where((u) => _tab == 0 ? u.role == 'user' : u.role == 'trainer').toList();
+    // Fetch users by role from API
+    final role = _tab == 0 ? 'user' : 'trainer';
+    return await api.fetchUsers(role: role);
+  }
+  
+  void _refreshList() {
+    setState(() {
+      _refreshKey++; // Increment key to force FutureBuilder to rebuild
+    });
   }
 
   Future<void> _createTrainerDialog() async {
     final nameCtrl = TextEditingController();
     final emailCtrl = TextEditingController();
     final passCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    bool loading = false;
+    
     final saved = await showDialog<bool>(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text('Create Trainer Account'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Name')),
-              TextField(controller: emailCtrl, decoration: const InputDecoration(labelText: 'Email')),
-              TextField(controller: passCtrl, obscureText: true, decoration: const InputDecoration(labelText: 'Password')),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-            ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Create')),
-          ],
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Create Trainer Account'),
+              content: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: nameCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Name',
+                        hintText: 'Enter trainer name',
+                      ),
+                      validator: (v) => v == null || v.trim().isEmpty ? 'Name is required' : null,
+                      enabled: !loading,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: emailCtrl,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: const InputDecoration(
+                        labelText: 'Email',
+                        hintText: 'Enter trainer email',
+                      ),
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) {
+                          return 'Email is required';
+                        }
+                        final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                        if (!emailRegex.hasMatch(v.trim())) {
+                          return 'Please enter a valid email address';
+                        }
+                        return null;
+                      },
+                      enabled: !loading,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: passCtrl,
+                      obscureText: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Password',
+                        hintText: 'Enter password (min 8 characters)',
+                      ),
+                      validator: (v) {
+                        if (v == null || v.isEmpty) {
+                          return 'Password is required';
+                        }
+                        if (v.length < 8) {
+                          return 'Password must be at least 8 characters';
+                        }
+                        return null;
+                      },
+                      enabled: !loading,
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: loading ? null : () => Navigator.pop(context, false),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: loading
+                      ? null
+                      : () async {
+                          if (formKey.currentState!.validate()) {
+                            setDialogState(() => loading = true);
+                            try {
+                              await api.addTrainer(
+                                name: nameCtrl.text.trim(),
+                                email: emailCtrl.text.trim(),
+                                password: passCtrl.text,
+                              );
+                              if (context.mounted) {
+                                Navigator.pop(context, true);
+                              }
+                            } catch (e) {
+                              setDialogState(() => loading = false);
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(_getErrorMessage(e)),
+                                    backgroundColor: Colors.red,
+                                    duration: const Duration(seconds: 4),
+                                  ),
+                                );
+                              }
+                            }
+                          }
+                        },
+                  child: loading
+                      ? const SizedBox(
+                          height: 16,
+                          width: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Create'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
+    
     if (saved == true) {
-      try {
-        await api.addTrainer(name: nameCtrl.text.trim(), email: emailCtrl.text.trim(), password: passCtrl.text);
-        if (mounted) {
-          setState(() {});
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Trainer account created successfully'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(e.toString().replaceFirst('Exception: ', '')),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
+      if (mounted) {
+        _refreshList(); // Refresh the list to show newly created trainer
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Trainer account created successfully'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
       }
     }
+  }
+
+  String _getErrorMessage(dynamic e) {
+    String errorMessage = e.toString();
+    if (errorMessage.startsWith('Exception: ')) {
+      errorMessage = errorMessage.substring(12);
+    } else if (errorMessage.startsWith('Exception:')) {
+      errorMessage = errorMessage.substring(10);
+    }
+    return errorMessage;
   }
 
   Future<void> _deleteUserDialog(UserModel user) async {
@@ -101,11 +203,12 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
       try {
         await api.deleteUser(user.id);
         if (mounted) {
-          setState(() {});
+          _refreshList(); // Refresh the list to remove deleted user
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('$role account deleted successfully'),
               backgroundColor: Colors.green,
+              duration: const Duration(seconds: 2),
             ),
           );
         }
@@ -113,8 +216,9 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Failed to delete account: ${e.toString().replaceFirst('Exception: ', '')}'),
+              content: Text('Failed to delete account: ${_getErrorMessage(e)}'),
               backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4),
             ),
           );
         }
@@ -148,7 +252,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
     );
 
     if (confirmed == true) {
-      MockAuthService.instance.signOut();
+      await MockAuthService.instance.signOut();
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const LoginPage()),
@@ -199,6 +303,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
           const SizedBox(height: 8),
           Expanded(
             child: FutureBuilder<List<UserModel>>(
+              key: ValueKey(_refreshKey), // Force rebuild when key changes
               future: _load(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
@@ -258,7 +363,12 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
     final selected = _tab == v;
     return Expanded(
       child: OutlinedButton(
-        onPressed: () => setState(() => _tab = v),
+        onPressed: () {
+          setState(() {
+            _tab = v;
+            _refreshKey++; // Refresh list when switching tabs
+          });
+        },
         style: OutlinedButton.styleFrom(
           backgroundColor: selected ? Colors.black : Colors.white,
           foregroundColor: selected ? Colors.white : Colors.black,

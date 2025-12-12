@@ -21,7 +21,7 @@ class _NutritionPlanFormPageState extends State<NutritionPlanFormPage> {
 
   final List<_MealDayPlan> _days = [
     _MealDayPlan(dayName: 'Monday', meals: [
-      _MealRow(),
+      _MealRow(key: GlobalKey<_MealRowState>()),
     ]),
   ];
 
@@ -35,17 +35,62 @@ class _NutritionPlanFormPageState extends State<NutritionPlanFormPage> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    
+    // Validate client is selected
+    if (_clientId == null || _clientId!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a client'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    
+    // Collect meals from all days
+    final List<MealRequest> meals = [];
+    for (final day in _days) {
+      for (final mealRow in day.meals) {
+        final key = mealRow.key;
+        if (key != null && key is GlobalKey<_MealRowState>) {
+          final state = key.currentState;
+          if (state != null) {
+            final mealName = state.mealName;
+            final timeOfDay = state.timeOfDay;
+            if (mealName.isNotEmpty) {
+              meals.add(MealRequest(name: mealName, timeOfDay: timeOfDay));
+            }
+          }
+        }
+      }
+    }
+    
+    // Validate at least one meal is added
+    if (meals.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please add at least one meal'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    
     try {
       final trainer = MockAuthService.instance.currentUser;
-      final plan = NutritionPlanModel(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        trainerId: trainer.id,
+      final request = NutritionPlanRequest(
         name: _nameCtrl.text.trim(),
         description: _goalCtrl.text.trim(),
         dailyCaloriesTarget: int.tryParse(_kcalCtrl.text.trim()) ?? 1800,
-        meals: const [],
+        meals: meals,
       );
-      await const ApiServiceFor().addNutritionPlan(plan);
+      
+      await const ApiServiceFor().addNutritionPlan(
+        trainerId: trainer.id,
+        selectedUserId: _clientId!,
+        request: request,
+      );
+      
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -56,10 +101,18 @@ class _NutritionPlanFormPageState extends State<NutritionPlanFormPage> {
       Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) {
+        String errorMessage = e.toString();
+        if (errorMessage.startsWith('Exception: ')) {
+          errorMessage = errorMessage.substring(12);
+        } else if (errorMessage.startsWith('Exception:')) {
+          errorMessage = errorMessage.substring(10);
+        }
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: $e'),
+            content: Text('Error: $errorMessage'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -70,7 +123,7 @@ class _NutritionPlanFormPageState extends State<NutritionPlanFormPage> {
     const names = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     final idx = _days.length % names.length;
     setState(() {
-      _days.add(_MealDayPlan(dayName: names[idx], meals: [_MealRow()]));
+      _days.add(_MealDayPlan(dayName: names[idx], meals: [_MealRow(key: GlobalKey<_MealRowState>())]));
     });
   }
 
@@ -186,7 +239,7 @@ class _NutritionPlanFormPageState extends State<NutritionPlanFormPage> {
             const SizedBox(height: 8),
             ..._days.map((d) => _MealDayCard(
                   day: d,
-                  onAddMeal: () => setState(() => d.meals.add(_MealRow())),
+                  onAddMeal: () => setState(() => d.meals.add(_MealRow(key: GlobalKey<_MealRowState>()))),
                   onRemove: () => setState(() => _days.remove(d)),
                   onRemoveMeal: (idx) => setState(() => d.meals.removeAt(idx)),
                 )),
@@ -297,6 +350,8 @@ class _MealDayCard extends StatelessWidget {
 }
 
 class _MealRow extends StatefulWidget {
+  const _MealRow({Key? key}) : super(key: key);
+  
   @override
   State<_MealRow> createState() => _MealRowState();
 }
@@ -309,6 +364,23 @@ class _MealRowState extends State<_MealRow> {
   final _proteinCtrl = TextEditingController();
   final _carbsCtrl = TextEditingController();
   final _fatsCtrl = TextEditingController();
+  TimeOfDay _timeOfDay = const TimeOfDay(hour: 8, minute: 0);
+
+  // Getters to access meal data from parent
+  String get mealName => _nameCtrl.text.trim().isEmpty ? _type : _nameCtrl.text.trim();
+  String get timeOfDay => '${_timeOfDay.hour.toString().padLeft(2, '0')}:${_timeOfDay.minute.toString().padLeft(2, '0')}';
+
+  Future<void> _selectTime() async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: _timeOfDay,
+    );
+    if (picked != null) {
+      setState(() {
+        _timeOfDay = picked;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -327,18 +399,40 @@ class _MealRowState extends State<_MealRow> {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(color: const Color(0xFFF8F8F8), borderRadius: BorderRadius.circular(12)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        DropdownButtonFormField<String>(
-          value: _type,
-          items: const [
-            DropdownMenuItem(value: 'Breakfast', child: Text('Breakfast')),
-            DropdownMenuItem(value: 'Lunch', child: Text('Lunch')),
-            DropdownMenuItem(value: 'Dinner', child: Text('Dinner')),
-            DropdownMenuItem(value: 'Snack', child: Text('Snack')),
+        Row(
+          children: [
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                value: _type,
+                items: const [
+                  DropdownMenuItem(value: 'Breakfast', child: Text('Breakfast')),
+                  DropdownMenuItem(value: 'Lunch', child: Text('Lunch')),
+                  DropdownMenuItem(value: 'Dinner', child: Text('Dinner')),
+                  DropdownMenuItem(value: 'Snack', child: Text('Snack')),
+                ],
+                onChanged: (v) => setState(() => _type = v ?? 'Breakfast'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: InkWell(
+                onTap: _selectTime,
+                child: InputDecorator(
+                  decoration: const InputDecoration(
+                    labelText: 'Time',
+                    suffixIcon: Icon(Icons.access_time),
+                  ),
+                  child: Text(
+                    '${_timeOfDay.hour.toString().padLeft(2, '0')}:${_timeOfDay.minute.toString().padLeft(2, '0')}',
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                ),
+              ),
+            ),
           ],
-          onChanged: (v) => setState(() => _type = v ?? 'Breakfast'),
         ),
         const SizedBox(height: 8),
-        TextField(controller: _nameCtrl, decoration: const InputDecoration(hintText: 'Meal name')),
+        TextField(controller: _nameCtrl, decoration: const InputDecoration(hintText: 'Meal name (optional, defaults to meal type)')),
         const SizedBox(height: 8),
         TextField(controller: _descCtrl, maxLines: 3, decoration: const InputDecoration(hintText: 'Description / ingredients')),
         const SizedBox(height: 8),

@@ -96,8 +96,9 @@ class _TrainerProfilePageState extends State<TrainerProfilePage> {
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
-                  onPressed: () {
-                    MockAuthService.instance.signOut();
+                  onPressed: () async {
+                    await MockAuthService.instance.signOut();
+                    if (!context.mounted) return;
                     Navigator.of(context).pushAndRemoveUntil(
                       MaterialPageRoute(builder: (_) => const LoginPage()),
                       (route) => false,

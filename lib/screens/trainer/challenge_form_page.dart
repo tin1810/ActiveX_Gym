@@ -36,17 +36,61 @@ class _ChallengeFormPageState extends State<ChallengeFormPage> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    final challenge = CommunityChallengeModel(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      title: _titleCtrl.text.trim(),
-      description: _descCtrl.text.trim(),
-      startDate: _start.toIso8601String(),
-      endDate: _end.toIso8601String(),
-      participants: [ChallengeUserModel(userId: MockAuthService.instance.currentUser.id, progress: 0)],
-    );
-    await const ApiServiceFor().addChallenge(challenge);
-    if (!mounted) return;
-    Navigator.of(context).pop(true);
+    
+    // Validate dates
+    if (_end.isBefore(_start)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('End date must be after start date'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    
+    try {
+      // Format dates as YYYY-MM-DD for API
+      String formatDate(DateTime date) {
+        return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+      }
+      
+      final challenge = CommunityChallengeModel(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        title: _titleCtrl.text.trim(),
+        description: _descCtrl.text.trim(),
+        startDate: formatDate(_start),
+        endDate: formatDate(_end),
+        participants: [], // API will handle participants
+      );
+      
+      await const ApiServiceFor().addChallenge(challenge);
+      
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Challenge created successfully'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      if (!mounted) return;
+      String errorMessage = e.toString();
+      if (errorMessage.startsWith('Exception: ')) {
+        errorMessage = errorMessage.substring(12);
+      } else if (errorMessage.startsWith('Exception:')) {
+        errorMessage = errorMessage.substring(10);
+      }
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $errorMessage'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
   }
 
   @override
@@ -67,11 +111,28 @@ class _ChallengeFormPageState extends State<ChallengeFormPage> {
                 const SizedBox(height: 12),
                 TextFormField(controller: _descCtrl, maxLines: 3, decoration: const InputDecoration(hintText: 'Description')), 
                 const SizedBox(height: 12),
-                Row(children: [
-                  Expanded(child: _dateField('Start Date', _start, () => _pickDate(start: true))),
-                  const SizedBox(width: 12),
-                  Expanded(child: _dateField('End Date', _end, () => _pickDate(start: false))),
-                ]),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    // Stack vertically on very small screens (< 400px width)
+                    if (constraints.maxWidth < 400) {
+                      return Column(
+                        children: [
+                          _dateField('Start Date', _start, () => _pickDate(start: true)),
+                          const SizedBox(height: 12),
+                          _dateField('End Date', _end, () => _pickDate(start: false)),
+                        ],
+                      );
+                    }
+                    // Show side by side on larger screens
+                    return Row(
+                      children: [
+                        Expanded(child: _dateField('Start Date', _start, () => _pickDate(start: true))),
+                        const SizedBox(width: 12),
+                        Expanded(child: _dateField('End Date', _end, () => _pickDate(start: false))),
+                      ],
+                    );
+                  },
+                ),
               ])),
               const SizedBox(height: 24),
             ],
@@ -109,15 +170,27 @@ class _ChallengeFormPageState extends State<ChallengeFormPage> {
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade300)),
-          child: Row(children: [
-            const Icon(Icons.event, color: Colors.grey),
-            const SizedBox(width: 8),
-            Text('${value.year}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}'),
-            const Spacer(),
-            const Icon(Icons.expand_more),
-          ]),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.event, color: Colors.grey, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '${value.year}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}',
+                  style: const TextStyle(fontSize: 14),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 4),
+              const Icon(Icons.expand_more, size: 20),
+            ],
+          ),
         ),
       ),
     ]);

@@ -21,17 +21,41 @@ class ExerciseModel {
   final String videoUrl;
   final List<String>? instructions;
 
-  factory ExerciseModel.fromJson(Map<String, dynamic> json) => ExerciseModel(
-        id: json['id'] as String,
-        title: json['title'] as String,
-        difficulty: json['difficulty'] as String,
-        sets: (json['sets'] as num).toInt(),
-        reps: json['reps'] as String,
-        restSeconds: (json['restSeconds'] as num).toInt(),
-        targetMuscles: (json['targetMuscles'] as List<dynamic>).cast<String>(),
-        videoUrl: json['videoUrl'] as String? ?? json['imageUrl'] as String? ?? '', // Support both for backward compatibility
-        instructions: (json['instructions'] as List<dynamic>?)?.cast<String>(),
-      );
+  factory ExerciseModel.fromJson(Map<String, dynamic> json) {
+    // Safely extract string values with null handling
+    String safeString(dynamic value, [String defaultValue = '']) {
+      if (value == null) return defaultValue;
+      if (value is String) return value;
+      return value.toString();
+    }
+    
+    int safeInt(dynamic value, [int defaultValue = 0]) {
+      if (value == null) return defaultValue;
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      return int.tryParse(value.toString()) ?? defaultValue;
+    }
+    
+    List<String> safeStringList(dynamic value) {
+      if (value == null) return [];
+      if (value is List) {
+        return value.map((e) => safeString(e)).toList();
+      }
+      return [];
+    }
+    
+    return ExerciseModel(
+      id: safeString(json['id']),
+      title: safeString(json['title']),
+      difficulty: safeString(json['difficulty'], 'Beginner'),
+      sets: safeInt(json['sets'], 3),
+      reps: safeString(json['reps']),
+      restSeconds: safeInt(json['restSeconds'], 60),
+      targetMuscles: safeStringList(json['targetMuscles']),
+      videoUrl: safeString(json['videoUrl'] ?? json['imageUrl']), // Support both for backward compatibility
+      instructions: json['instructions'] != null ? safeStringList(json['instructions']) : null,
+    );
+  }
 
   Map<String, dynamic> toJson() => {
         'id': id,

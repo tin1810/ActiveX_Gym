@@ -76,7 +76,7 @@ class _WorkoutPlansPageState extends State<WorkoutPlansPage> {
       ),
      // floatingActionButton: TrainerFab(page: 'workout'),
       body: FutureBuilder<List<WorkoutPlanModel>>(
-        future: api.fetchWorkoutPlans(),
+        future: api.fetchWorkoutPlans(limit: 20),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
@@ -118,6 +118,7 @@ class _WorkoutPlansPageState extends State<WorkoutPlansPage> {
                 borderRadius: BorderRadius.circular(16),
                 child: Container(
                   padding: const EdgeInsets.all(12),
+                  margin: EdgeInsets.only(bottom: i == plans.length - 1 ? 0 : 12),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),

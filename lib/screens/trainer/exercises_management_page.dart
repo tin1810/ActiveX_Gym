@@ -33,7 +33,7 @@ class _ExercisesManagementPageState extends State<ExercisesManagementPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Exercise'),
-        content: const Text('Are you sure you want to delete this exercise?'),
+        content: const Text('Are you sure you want to delete this exercise? This action cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -48,8 +48,36 @@ class _ExercisesManagementPageState extends State<ExercisesManagementPage> {
       ),
     );
     if (confirm == true) {
-      await api.deleteExercise(id);
-      _refresh();
+      try {
+        await api.deleteExercise(id);
+        if (mounted) {
+          _refresh();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Exercise deleted successfully'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          String errorMessage = e.toString();
+          if (errorMessage.startsWith('Exception: ')) {
+            errorMessage = errorMessage.substring(12);
+          } else if (errorMessage.startsWith('Exception:')) {
+            errorMessage = errorMessage.substring(10);
+          }
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete exercise: $errorMessage'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      }
     }
   }
 
@@ -66,7 +94,7 @@ class _ExercisesManagementPageState extends State<ExercisesManagementPage> {
         title: const Text('Exercise Management'),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
-        elevation: 0,
+        elevation: 0, 
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
@@ -185,9 +213,12 @@ class _ExerciseCard extends StatelessWidget {
                       color: _getDifficultyColor(exercise.difficulty),
                     ),
                     const SizedBox(width: 8),
-                    Text(
-                      '${exercise.sets} sets • ${exercise.reps} reps',
-                      style: AppTextStyle.regularText(size: 12, color: Colors.grey[600]),
+                    Flexible(
+                      child: Text(
+                        '${exercise.sets} sets • ${exercise.reps} reps',
+                        style: AppTextStyle.regularText(size: 12, color: Colors.grey[600]),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ],
                 ),

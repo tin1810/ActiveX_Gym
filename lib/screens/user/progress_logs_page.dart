@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/network_service.dart';
 import '../../services/auth.dart';
-import '../../services/database_helper.dart';
 import '../../models/er_models.dart';
 import '../../utils/app_text_style.dart';
 import 'progress_log_form_page.dart';
@@ -21,6 +20,18 @@ class _ProgressLogsPageState extends State<ProgressLogsPage> {
   }
 
   Future<void> _deleteLog(ProgressLogModel log) async {
+    if (log.id == null || log.id!.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Cannot delete: Log ID is missing'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -39,16 +50,37 @@ class _ProgressLogsPageState extends State<ProgressLogsPage> {
         ],
       ),
     );
+    
     if (confirm == true) {
-      // Delete from database
-      final db = await DatabaseHelper.instance.database;
-      await db.delete(
-        'progress_logs',
-        where: 'user_id = ? AND date = ?',
-        whereArgs: [log.userId, log.date],
-      );
-      if (mounted) {
-        _refresh();
+      try {
+        await api.deleteProgressLog(log.id!);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Progress log deleted successfully'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+          _refresh();
+        }
+      } catch (e) {
+        if (mounted) {
+          String errorMessage = e.toString();
+          if (errorMessage.startsWith('Exception: ')) {
+            errorMessage = errorMessage.substring(12);
+          } else if (errorMessage.startsWith('Exception:')) {
+            errorMessage = errorMessage.substring(10);
+          }
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: $errorMessage'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
       }
     }
   }
@@ -62,27 +94,67 @@ class _ProgressLogsPageState extends State<ProgressLogsPage> {
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0,
-        actions: [
-          IconButton(
-            onPressed: () async {
-              final result = await Navigator.of(context).push<bool>(
-                MaterialPageRoute(builder: (_) => const ProgressLogFormPage()),
-              );
-              if (result == true) {
-                _refresh();
-              }
-            },
-            icon: const Icon(Icons.add),
-            tooltip: 'Add Log',
-          ),
-        ],
+        // actions: [
+        //   IconButton(
+        //     onPressed: () async {
+        //       final result = await Navigator.of(context).push<bool>(
+        //         MaterialPageRoute(builder: (_) => const ProgressLogFormPage()),
+        //       );
+        //       if (result == true) {
+        //         _refresh();
+        //       }
+        //     },
+        //     icon: const Icon(Icons.add),
+        //     tooltip: 'Add Log',
+        //   ),
+        // ],
       ),
       body: FutureBuilder<List<ProgressLogModel>>(
         future: api.fetchProgressLogs(userId),
         builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          
+          if (snapshot.hasError) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Error loading progress logs',
+                    style: TextStyle(fontSize: 16, color: Colors.grey[700], fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                    child: Text(
+                      snapshot.error.toString().replaceAll('Exception: ', ''),
+                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: _refresh,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Retry'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF4CAF50),
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+          
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
+          
           final logs = snapshot.data!;
           if (logs.isEmpty) {
             return Center(
