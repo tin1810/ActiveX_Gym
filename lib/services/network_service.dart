@@ -183,9 +183,11 @@ class ApiServiceFor {
     }
   }
 
-  Future<List<NutritionPlanModel>> fetchNutritionPlans({int? limit}) async {
+  Future<List<NutritionPlanModel>> fetchNutritionPlans({String? userId, String? trainerId, int? limit}) async {
     try {
       final apiResponse = await activeXGymApiService.getNutritionPlans(
+        userId: userId,
+        trainerId: trainerId,
         limit: limit ?? 20,
       );
       
@@ -210,9 +212,16 @@ class ApiServiceFor {
       
       return apiResponse.data?.items ?? [];
     } catch (e) {
-      // Fallback to SQLite if API fails
-      await _ensureMigrated();
-      return await DatabaseHelper.instance.getAllNutritionPlans();
+      String errorMessage = 'Failed to fetch nutrition plans';
+      if (e is Exception) {
+        errorMessage = e.toString();
+        if (errorMessage.startsWith('Exception: ')) {
+          errorMessage = errorMessage.substring(12);
+        } else if (errorMessage.startsWith('Exception:')) {
+          errorMessage = errorMessage.substring(10);
+        }
+      }
+      throw Exception(errorMessage);
     }
   }
 
@@ -563,10 +572,10 @@ class ApiServiceFor {
     if (!MockAuthService.instance.isTrainer && !MockAuthService.instance.isAdmin) {
       throw Exception('Only trainers/admins can delete challenges');
     }
-    
+
     try {
       final apiResponse = await activeXGymApiService.deleteChallenge(id);
-      
+
       // Check if the response indicates success
       if (!apiResponse.success) {
         String errorMessage = apiResponse.message ?? 'Failed to delete challenge';
@@ -588,6 +597,86 @@ class ApiServiceFor {
       }
     } catch (e) {
       String errorMessage = 'Failed to delete challenge';
+      if (e is Exception) {
+        errorMessage = e.toString();
+        if (errorMessage.startsWith('Exception: ')) {
+          errorMessage = errorMessage.substring(12);
+        } else if (errorMessage.startsWith('Exception:')) {
+          errorMessage = errorMessage.substring(10);
+        }
+      }
+      throw Exception(errorMessage);
+    }
+  }
+
+  Future<void> joinChallenge(String challengeId, {int progress = 0}) async {
+    try {
+      final userId = MockAuthService.instance.currentUser.id;
+      final apiResponse = await activeXGymApiService.joinChallenge(
+        challengeId,
+        userId,
+        progress,
+      );
+
+      // Check if the response indicates success
+      if (!apiResponse.success) {
+        String errorMessage = apiResponse.message ?? 'Failed to join challenge';
+        if (apiResponse.errors != null && apiResponse.errors!.isNotEmpty) {
+          final errorMessages = apiResponse.errors!
+              .map((e) {
+                if (e.field.isNotEmpty) {
+                  return '${e.field}: ${e.message}';
+                }
+                return e.message;
+              })
+              .where((m) => m.isNotEmpty)
+              .toList();
+          if (errorMessages.isNotEmpty) {
+            errorMessage = errorMessages.join('\n');
+          }
+        }
+        throw Exception(errorMessage);
+      }
+    } catch (e) {
+      String errorMessage = 'Failed to join challenge';
+      if (e is Exception) {
+        errorMessage = e.toString();
+        if (errorMessage.startsWith('Exception: ')) {
+          errorMessage = errorMessage.substring(12);
+        } else if (errorMessage.startsWith('Exception:')) {
+          errorMessage = errorMessage.substring(10);
+        }
+      }
+      throw Exception(errorMessage);
+    }
+  }
+
+  Future<void> leaveChallenge(String challengeId) async {
+    try {
+      final userId = MockAuthService.instance.currentUser.id;
+      final apiResponse = await activeXGymApiService.leaveChallenge(challengeId, userId);
+
+      // Check if the response indicates success
+      if (!apiResponse.success) {
+        String errorMessage = apiResponse.message ?? 'Failed to leave challenge';
+        if (apiResponse.errors != null && apiResponse.errors!.isNotEmpty) {
+          final errorMessages = apiResponse.errors!
+              .map((e) {
+                if (e.field.isNotEmpty) {
+                  return '${e.field}: ${e.message}';
+                }
+                return e.message;
+              })
+              .where((m) => m.isNotEmpty)
+              .toList();
+          if (errorMessages.isNotEmpty) {
+            errorMessage = errorMessages.join('\n');
+          }
+        }
+        throw Exception(errorMessage);
+      }
+    } catch (e) {
+      String errorMessage = 'Failed to leave challenge';
       if (e is Exception) {
         errorMessage = e.toString();
         if (errorMessage.startsWith('Exception: ')) {
@@ -1545,6 +1634,18 @@ abstract class ActiveXGymApiService {
   /// DELETE /challenges/{id}
   /// Auth required, role: trainer|admin
   Future<ApiResponse<void>> deleteChallenge(String id);
+
+  /// POST /challenges/{challengeId}/join
+  /// Auth required
+  Future<ApiResponse<void>> joinChallenge(
+    String challengeId,
+    String userId,
+    int progress,
+  );
+
+  /// POST /challenges/{challengeId}/leave
+  /// Auth required
+  Future<ApiResponse<void>> leaveChallenge(String challengeId, String userId);
 
   // ============================================================================
   // 8. Progress Logs Endpoints
@@ -3149,6 +3250,75 @@ class ActiveXGymApiServiceImpl extends ActiveXGymApiService {
       );
     } catch (e) {
       String errorMessage = 'Failed to delete challenge';
+      if (e is Exception) {
+        errorMessage = e.toString();
+      }
+      throw Exception(errorMessage);
+    }
+  }
+
+  @override
+  Future<ApiResponse<void>> joinChallenge(
+    String challengeId,
+    String userId,
+    int progress,
+  ) async {
+    try {
+      // Generate UUID v4 format for the id field if backend requires it
+      // Format: 8-4-4-4-12 (e.g., 019b11f5-9692-71bc-99a1-0806e2ea9d68)
+      String generateUuid() {
+        final now = DateTime.now();
+        final timestamp = now.millisecondsSinceEpoch.toRadixString(16).padLeft(12, '0');
+        final microseconds = now.microsecondsSinceEpoch.toRadixString(16).padLeft(12, '0');
+        final random = (now.millisecondsSinceEpoch % 1000000).toRadixString(16).padLeft(6, '0');
+        
+        // Combine to get 32 hex characters total (8-4-4-4-12)
+        final combined = (timestamp + microseconds + random).padRight(32, '0').substring(0, 32);
+        
+        // Format: 8-4-4-4-12
+        return '${combined.substring(0, 8)}-${combined.substring(8, 12)}-${combined.substring(12, 16)}-${combined.substring(16, 20)}-${combined.substring(20, 32)}';
+      }
+      
+      final response = await _makeRequest(
+        'POST',
+        '/challenges/$challengeId/join',
+        body: {
+          'id': generateUuid(), // Generate ID if backend requires it
+          'userId': userId,
+         
+        },
+      );
+
+      return _parseResponse<void>(
+        response,
+        null, // No data to parse for join requests
+      );
+    } catch (e) {
+      String errorMessage = 'Failed to join challenge';
+      if (e is Exception) {
+        errorMessage = e.toString();
+      }
+      throw Exception(errorMessage);
+    }
+  }
+
+  @override
+  Future<ApiResponse<void>> leaveChallenge(String challengeId, String userId) async {
+    try {
+      final response = await _makeRequest(
+        'POST',
+        '/challenges/$challengeId/leave',
+        body: {
+          'userId': userId,
+        },
+      );
+
+      return _parseResponse<void>(
+        response,
+        null, // No data to parse for leave requests
+      );
+    } catch (e) {
+      String errorMessage = 'Failed to leave challenge';
       if (e is Exception) {
         errorMessage = e.toString();
       }

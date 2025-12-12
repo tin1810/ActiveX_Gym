@@ -4,6 +4,7 @@ import '../../services/network_service.dart';
 import '../../models/er_models.dart';
 import '../../utils/app_text_style.dart';
 import '../../services/auth.dart';
+import 'nutrition_plan_detail_page.dart';
 
 class NutritionPlansPage extends StatefulWidget {
   const NutritionPlansPage({super.key});
@@ -206,7 +207,15 @@ class _NutritionPlansPageState extends State<NutritionPlansPage> {
       ),
       floatingActionButton: null,
       body: FutureBuilder<List<NutritionPlanModel>>(
-        future: api.fetchNutritionPlans(limit: 20),
+        future: MockAuthService.instance.isTrainer || MockAuthService.instance.isAdmin
+            ? api.fetchNutritionPlans(
+                trainerId: MockAuthService.instance.currentUser.id,
+                limit: 20,
+              )
+            : api.fetchNutritionPlans(
+                userId: MockAuthService.instance.currentUser.id,
+                limit: 20,
+              ),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -257,18 +266,27 @@ class _NutritionPlansPageState extends State<NutritionPlansPage> {
             const SizedBox(height: 12),
               ...List.generate(plans.length, (i) {
                 final p = plans[i];
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.grey.shade300),
-                    boxShadow: [
-                      BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 2)),
-                    ],
-                  ),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                return InkWell(
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => NutritionPlanDetailPage(plan: p),
+                      ),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey.shade300),
+                      boxShadow: [
+                        BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 2)),
+                      ],
+                    ),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Row(children: [
                       Container(
                         width: 36,
@@ -332,6 +350,7 @@ class _NutritionPlansPageState extends State<NutritionPlansPage> {
                     const SizedBox(height: 6),
                     _ProgressBarN(value: _progress(i)),
                   ]),
+                  ),
                 );
               }),
             ],

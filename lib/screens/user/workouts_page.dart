@@ -26,6 +26,7 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
   final TextEditingController _searchController = TextEditingController();
   final ApiServiceFor _api = const ApiServiceFor();
   late Future<List<WorkoutModel>> _futureWorkouts;
+  String _searchQuery = '';
 
   @override
   void dispose() {
@@ -37,6 +38,41 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
   void initState() {
     super.initState();
     _futureWorkouts = _api.fetchWorkouts();
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  void _onSearchChanged() {
+    setState(() {
+      _searchQuery = _searchController.text.toLowerCase().trim();
+    });
+  }
+
+  List<WorkoutModel> _filterWorkouts(List<WorkoutModel> workouts) {
+    var filtered = workouts;
+
+    // Apply search filter
+    if (_searchQuery.isNotEmpty) {
+      filtered = filtered.where((workout) {
+        final query = _searchQuery.toLowerCase();
+        final titleMatch = workout.title.toLowerCase().contains(query);
+        final tagsMatch = workout.tags.any((tag) => tag.toLowerCase().contains(query));
+        final equipmentMatch = workout.equipment?.toLowerCase().contains(query) ?? false;
+        final levelMatch = workout.level.toLowerCase().contains(query);
+        
+        return titleMatch || tagsMatch || equipmentMatch || levelMatch;
+      }).toList();
+    }
+
+    // Apply type filter
+    if (_selectedFilter > 0) {
+      final filterType = _filters[_selectedFilter].toLowerCase();
+      filtered = filtered.where((workout) {
+        return workout.tags.any((tag) => tag.toLowerCase() == filterType) ||
+               workout.title.toLowerCase().contains(filterType);
+      }).toList();
+    }
+
+    return filtered;
   }
 
   @override
@@ -55,8 +91,9 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: TextField(
+                  child: TextField(
                   controller: _searchController,
+                  onChanged: (_) => setState(() {}),
                   decoration: InputDecoration(
                     hintText: 'Search workouts...',
                     hintStyle: AppTextStyle.regularText(
@@ -64,6 +101,17 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
                       color: Colors.grey[500],
                     ),
                     prefixIcon: Icon(Icons.search, color: Colors.grey[400]),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, color: Colors.grey),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() {
+                                _searchQuery = '';
+                              });
+                            },
+                          )
+                        : null,
                     border: InputBorder.none,
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 16,
@@ -126,7 +174,8 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
                     );
                   }
                   final workouts = snapshot.data ?? [];
-                  final mapped = workouts.map((w) => _WorkoutData(
+                  final filteredWorkouts = _filterWorkouts(workouts);
+                  final mapped = filteredWorkouts.map((w) => _WorkoutData(
                         id: w.id,
                         title: w.title,
                         difficulty: w.level,
@@ -165,15 +214,38 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
                               if (!snapPlans.hasData) return const SizedBox.shrink();
                               final plans = snapPlans.data!;
                               if (plans.isEmpty) return const SizedBox.shrink();
+                              
+                              // Filter trainer assigned workouts based on search query
+                              final filteredPlans = _searchQuery.isNotEmpty
+                                  ? plans.where((p) {
+                                      final query = _searchQuery.toLowerCase();
+                                      final nameMatch = p.name.toLowerCase().contains(query);
+                                      final descMatch = p.description.toLowerCase().contains(query);
+                                      final difficultyMatch = p.difficulty.toLowerCase().contains(query);
+                                      final tagsMatch = p.tags?.any((tag) => tag.toLowerCase().contains(query)) ?? false;
+                                      final equipmentMatch = p.equipment?.toLowerCase().contains(query) ?? false;
+                                      return nameMatch || descMatch || difficultyMatch || tagsMatch || equipmentMatch;
+                                    }).toList()
+                                  : plans;
+                              
+                              if (filteredPlans.isEmpty && _searchQuery.isNotEmpty) {
+                                return const SizedBox.shrink(); // Don't show section if no results
+                              }
+                              
                               return Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Padding(
                                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                                    child: Text('Trainer Assigned Workout', style: AppTextStyle.semiBoldText(size: 20, color: Colors.black)),
+                                    child: Text(
+                                      _searchQuery.isNotEmpty 
+                                          ? 'Trainer Assigned Workout (${filteredPlans.length})'
+                                          : 'Trainer Assigned Workout',
+                                      style: AppTextStyle.semiBoldText(size: 20, color: Colors.black),
+                                    ),
                                   ),
                                   const SizedBox(height: 12),
-                                  ...plans.take(4).map((p) => InkWell(
+                                  ...filteredPlans.take(4).map((p) => InkWell(
                                         onTap: () => Navigator.of(context).push(
                                           MaterialPageRoute(builder: (_) => WorkoutPlanDetailPage(plan: p)),
                                         ),
@@ -347,21 +419,53 @@ class _WorkoutsPageState extends State<WorkoutsPage> {
                         // All Workouts Section
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Text(
-                            'All Workouts',
-                            style: AppTextStyle.semiBoldText(
-                              size: 20,
-                              color: Colors.black,
-                            ),
+                          child: Row(
+                            children: [
+                              Text(
+                                _searchQuery.isNotEmpty 
+                                    ? 'Search Results (${mapped.length})'
+                                    : 'All Workouts',
+                                style: AppTextStyle.semiBoldText(
+                                  size: 20,
+                                  color: Colors.black,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                         const SizedBox(height: 12),
-                        ...mapped
-                            .map((wd) => Container(
-                                  margin: const EdgeInsets.only(bottom: 16, left: 16, right: 16),
-                                  child: _buildWorkoutCard(wd),
-                                ))
-                            .toList(),
+                        if (mapped.isEmpty && _searchQuery.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.all(32),
+                            child: Column(
+                              children: [
+                                Icon(Icons.search_off, size: 64, color: Colors.grey[400]),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'No workouts found',
+                                  style: AppTextStyle.mediumText(
+                                    size: 16,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Try a different search term',
+                                  style: AppTextStyle.regularText(
+                                    size: 14,
+                                    color: Colors.grey[500],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        else
+                          ...mapped
+                              .map((wd) => Container(
+                                    margin: const EdgeInsets.only(bottom: 16, left: 16, right: 16),
+                                    child: _buildWorkoutCard(wd),
+                                  ))
+                              .toList(),
                         const SizedBox(height: 32),
                       ],
                     ),

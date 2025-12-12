@@ -15,6 +15,99 @@ class ChallengesPage extends StatefulWidget {
 class _ChallengesPageState extends State<ChallengesPage> {
   final api = const ApiServiceFor();
 
+  Future<void> _joinChallenge(BuildContext context, String challengeId) async {
+    try {
+      await api.joinChallenge(challengeId, progress: 0);
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Successfully joined the challenge!'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      
+      setState(() {});
+    } catch (e) {
+      if (!mounted) return;
+      String errorMessage = e.toString();
+      if (errorMessage.startsWith('Exception: ')) {
+        errorMessage = errorMessage.substring(12);
+      } else if (errorMessage.startsWith('Exception:')) {
+        errorMessage = errorMessage.substring(10);
+      }
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $errorMessage'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
+  }
+
+  Future<void> _leaveChallenge(BuildContext context, String challengeId) async {
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Leave Challenge'),
+          content: const Text('Are you sure you want to leave this challenge? Your progress will be lost.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Leave'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await api.leaveChallenge(challengeId);
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Successfully left the challenge'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      
+      setState(() {});
+    } catch (e) {
+      if (!mounted) return;
+      String errorMessage = e.toString();
+      if (errorMessage.startsWith('Exception: ')) {
+        errorMessage = errorMessage.substring(12);
+      } else if (errorMessage.startsWith('Exception:')) {
+        errorMessage = errorMessage.substring(10);
+      }
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $errorMessage'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
+  }
+
   Future<void> _deleteChallenge(BuildContext context, String id) async {
     // Show confirmation dialog
     final confirmed = await showDialog<bool>(
@@ -142,6 +235,12 @@ class _ChallengesPageState extends State<ChallengesPage> {
               final avgProgress = c.participants.isEmpty
                   ? 0
                   : (c.participants.map((e) => e.progress).reduce((a, b) => a + b) / c.participants.length).round();
+              final currentUserId = MockAuthService.instance.currentUser.id;
+              final hasJoined = c.participants.any((p) => p.userId == currentUserId);
+              final userProgress = hasJoined 
+                  ? c.participants.firstWhere((p) => p.userId == currentUserId).progress
+                  : null;
+              
               return Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -208,6 +307,68 @@ class _ChallengesPageState extends State<ChallengesPage> {
                         Text('$avgProgress% complete', style: AppTextStyle.mediumText(size: 12, color: Colors.grey[800])),
                       ],
                     ),
+                    if (!MockAuthService.instance.isTrainer && !MockAuthService.instance.isAdmin) ...[
+                      const SizedBox(height: 12),
+                      if (hasJoined)
+                        Column(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF4CAF50).withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: const Color(0xFF4CAF50).withValues(alpha: 0.3)),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.check_circle, color: Color(0xFF4CAF50), size: 20),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Joined - Your Progress: $userProgress%',
+                                      style: AppTextStyle.mediumText(size: 13, color: const Color(0xFF4CAF50)),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: () => _leaveChallenge(context, c.id),
+                                icon: const Icon(Icons.exit_to_app, size: 18),
+                                label: const Text('Leave Challenge'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.red,
+                                  side: const BorderSide(color: Colors.red),
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                      else
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () => _joinChallenge(context, c.id),
+                            icon: const Icon(Icons.person_add, size: 18),
+                            label: const Text('Join Challenge'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF4CAF50),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ],
                 ),
               );
